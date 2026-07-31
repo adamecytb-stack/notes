@@ -6,7 +6,16 @@
  * IndexedDB and are reconciled by store.js.
  */
 
-const CACHE = 'nocturne-v4';
+/**
+ * Rewritten to the commit SHA at deploy time by scripts/stamp-version.mjs.
+ *
+ * It has to live in this file's bytes: a browser decides whether to update by
+ * byte-comparing sw.js, so if only app.js changed and this file did not, the
+ * phone would never look. Stamping it on every deploy means any change to
+ * anything triggers the update.
+ */
+const VERSION = 'dev';
+const CACHE = `nocturne-${VERSION}`;
 
 /**
  * Note "/" rather than "/index.html": Cloudflare's asset server 307-redirects
@@ -36,13 +45,19 @@ const SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
+      // A cache per version, so the new shell is assembled alongside the old
+      // one rather than on top of it. Nothing serves out of it until activate,
+      // which is what stops a half-updated app — new HTML against old
+      // JavaScript is a blank screen, not a stale screen.
       const cache = await caches.open(CACHE);
       // Added one at a time on purpose: with addAll, a single failed URL throws
       // away the entire offline shell.
       await Promise.all(
         SHELL.map((url) => cache.add(new Request(url, { cache: 'reload' })).catch(() => {})),
       );
-      await self.skipWaiting();
+      // Deliberately no skipWaiting() here. Taking over mid-session would swap
+      // the code under someone who is part-way through typing a dream. The new
+      // worker waits until the app asks, or until the next cold start.
     })(),
   );
 });
@@ -55,6 +70,12 @@ self.addEventListener('activate', (event) => {
       await self.clients.claim();
     })(),
   );
+});
+
+self.addEventListener('message', (event) => {
+  // The app sends this once it is safe to swap — nothing unsaved on screen.
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data === 'VERSION') event.source?.postMessage({ type: 'VERSION', version: VERSION });
 });
 
 const OFFLINE_FALLBACK = new Response(
@@ -70,25 +91,29 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return; // always live
 
-  // Navigations: serve the cached shell instantly, refresh it in the background.
+  /*
+   * Cache-first with no background refresh, on purpose.
+   *
+   * This cache belongs to one version and is treated as immutable for its
+   * lifetime. Refreshing individual files inside it would put a new app.js
+   * next to an old index.html — exactly the mismatch the versioned cache
+   * exists to prevent. New files only ever arrive as a complete set, when a
+   * new worker installs.
+   */
   if (request.mode === 'navigate') {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE);
         const cached = await cache.match('/');
-
-        // A navigate-mode Request cannot be passed to fetch(); use its URL.
-        const fromNetwork = () =>
-          fetch(request.url).then((res) => {
-            if (res.ok) cache.put('/', res.clone());
-            return res;
-          });
-
-        if (cached) {
-          event.waitUntil(fromNetwork().catch(() => {}));
-          return cached;
+        if (cached) return cached;
+        try {
+          // A navigate-mode Request cannot be passed to fetch(); use its URL.
+          const res = await fetch(request.url);
+          if (res.ok) cache.put('/', res.clone());
+          return res;
+        } catch {
+          return OFFLINE_FALLBACK.clone();
         }
-        return fromNetwork().catch(() => cached || OFFLINE_FALLBACK.clone());
       })(),
     );
     return;
@@ -96,22 +121,14 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     (async () => {
-      const cached = await caches.match(request);
-      if (cached) {
-        event.waitUntil(
-          fetch(request)
-            .then(async (res) => {
-              if (res.ok) (await caches.open(CACHE)).put(request, res.clone());
-            })
-            .catch(() => {}),
-        );
-        return cached;
-      }
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(request);
+      if (cached) return cached;
       try {
         const res = await fetch(request);
         if (res.ok) {
           const copy = res.clone();
-          event.waitUntil(caches.open(CACHE).then((c) => c.put(request, copy)));
+          event.waitUntil(cache.put(request, copy));
         }
         return res;
       } catch {

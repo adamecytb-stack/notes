@@ -182,6 +182,35 @@ above.
 
 ---
 
+## Updates once it is on your Home Screen
+
+It updates itself. You never reinstall, and you never lose a dream to it.
+
+The mechanism, because getting this wrong is the usual reason installed web
+apps go stale:
+
+- **Every deploy stamps the commit SHA into `sw.js`.** Browsers detect a new
+  service worker by byte-comparing that one file — so without the stamp, a
+  change to `app.js` alone would leave it identical and your phone would never
+  look. `scripts/stamp-version.mjs` runs in the deploy, and refuses to run if
+  it cannot find the line to stamp.
+- **Each version gets its own cache**, filled completely before it is used.
+  You never end up running new HTML against old JavaScript, which is a blank
+  screen rather than merely a stale one.
+- **The new version waits rather than barging in.** Swapping the code under
+  someone mid-sentence at 3am is worse than being a few minutes out of date.
+  If nothing is on screen it applies silently; if you are writing, a small
+  prompt appears and it waits for you.
+- **`sw.js` is served `no-cache`** (see `public/_headers`), so the check
+  actually reaches the server instead of a stale copy.
+
+It looks for a new version when you come back to the app, and hourly while
+open. `npm run test:update` covers the whole path: ship a change, confirm the
+running app picks it up, confirm the old cache is deleted, confirm it still
+works offline afterwards.
+
+---
+
 ## Why Add to Home Screen matters
 
 It is not only convenience: it drops the browser chrome, gives it
@@ -408,6 +437,7 @@ npm run test:api      # crypto, auth, seat limits, journal separation
 npm run test:sharing  # ECDH sharing, and that the server cannot read a share
 npm run test:flows    # the UI: autosave, passphrase change, offline capture
 npm run test:lucid    # the guided flow, the tips, the patterns screen
+npm run test:update   # that a deployed change actually reaches an installed app
 npm run shots         # screenshots on an iPhone viewport → ./screenshots
 ```
 

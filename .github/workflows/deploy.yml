@@ -114,6 +114,11 @@ jobs:
         # come through here. Safe to re-run; see scripts/migrate.mjs.
         run: node scripts/migrate.mjs --remote
 
+      - name: Stamp the service worker
+        # Without this, a change to app.js alone leaves sw.js byte-identical and
+        # installed phones never notice there is a new version.
+        run: node scripts/stamp-version.mjs "${GITHUB_SHA::7}"
+
       - name: Deploy
         id: deploy
         run: |

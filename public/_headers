@@ -1,0 +1,23 @@
+# Cloudflare serves these files directly, so the caching rules live here.
+#
+# sw.js must be revalidated on every load: it is the only thing that tells the
+# phone an update exists, and a cached copy would hide new versions for as long
+# as the browser felt like holding it.
+/sw.js
+  Cache-Control: no-cache
+
+# The shell is served from the service worker cache anyway; this only affects
+# the very first load and any browser without a worker.
+/index.html
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# Everything else is fetched fresh by the worker at install time, so a short
+# browser cache is fine and keeps the first paint quick.
+/*
+  Cache-Control: public, max-age=3600

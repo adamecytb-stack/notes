@@ -21,7 +21,8 @@
     "migrate:remote": "node scripts/migrate.mjs --remote",
     "test:push": "node test/push.test.mjs",
     "stub:push": "node test/push-stub.mjs",
-    "vapid": "node scripts/vapid-keys.mjs"
+    "vapid": "node scripts/vapid-keys.mjs",
+    "test:update": "node test/update.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

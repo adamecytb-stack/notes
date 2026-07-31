@@ -1401,9 +1401,72 @@ async function boot() {
     openCompose(null);
   }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  watchForUpdates();
+}
+
+/* ---------------------------------------------------------------- updates */
+
+let reloading = false;
+
+/**
+ * Applies a waiting update, but never while a dream is half-written.
+ *
+ * The service worker deliberately does not take over on its own, so this is
+ * what decides when the swap happens: silently if nothing is on screen,
+ * otherwise by asking.
+ */
+function applyUpdate(worker) {
+  worker.postMessage('SKIP_WAITING');
+}
+
+function offerUpdate(worker) {
+  const composing = $('#sheet').classList.contains('is-open');
+  if (!composing) return applyUpdate(worker); // nothing to lose, just swap
+
+  const bar = $('#update-bar');
+  bar.classList.remove('hidden');
+  bar.onclick = () => {
+    bar.classList.add('hidden');
+    applyUpdate(worker);
+  };
+}
+
+async function watchForUpdates() {
+  if (!('serviceWorker' in navigator)) return;
+
+  let registration;
+  try {
+    registration = await navigator.serviceWorker.register('/sw.js');
+  } catch {
+    return;
   }
+
+  // The new worker calling skipWaiting is what fires this; reload once so the
+  // page and the worker are the same version.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  if (registration.waiting) offerUpdate(registration.waiting);
+
+  registration.addEventListener('updatefound', () => {
+    const installing = registration.installing;
+    if (!installing) return;
+    installing.addEventListener('statechange', () => {
+      // "installed" with an existing controller means an update, not a first run.
+      if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+        offerUpdate(installing);
+      }
+    });
+  });
+
+  // Coming back to the app is the natural moment to look for a new version.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') registration.update().catch(() => {});
+  });
+  setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000);
 }
 
 boot();
