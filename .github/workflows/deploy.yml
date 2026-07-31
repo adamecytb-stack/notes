@@ -54,21 +54,38 @@ jobs:
 
       - name: Find or create the database
         id: db
+        # Talks to the REST API rather than parsing `wrangler d1 list`: wrangler
+        # prints a banner alongside its JSON, and its failure was previously
+        # indistinguishable from "no database yet" — a missing D1 permission
+        # got reported as a successful lookup returning nothing.
         run: |
-          set -euo pipefail
-          find_id() {
-            npx wrangler d1 list --json 2>/dev/null \
-              | jq -r '.[]? | select(.name=="dreams") | (.uuid // .database_id // .id)' \
-              | head -1
-          }
-          DB_ID="$(find_id || true)"
+          set -uo pipefail
+          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database"
+          reason() { jq -r '[.errors[]?.message] | join("; ") // "unknown error"' <<<"$1"; }
+
+          resp="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API?name=dreams")"
+          if [ "$(jq -r '.success' <<<"$resp")" != "true" ]; then
+            echo "::error::Cloudflare refused the database lookup: $(reason "$resp")"
+            echo "The API token is probably missing the Account -> D1 -> Edit permission."
+            echo "Edit it at https://dash.cloudflare.com/profile/api-tokens and re-run."
+            exit 1
+          fi
+
+          DB_ID="$(jq -r '.result[]? | select(.name=="dreams") | .uuid' <<<"$resp" | head -1)"
+
           if [ -z "$DB_ID" ]; then
             echo "No 'dreams' database yet — creating it."
-            npx wrangler d1 create dreams
-            DB_ID="$(find_id || true)"
+            created="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H 'Content-Type: application/json' --data '{"name":"dreams"}' "$API")"
+            if [ "$(jq -r '.success' <<<"$created")" != "true" ]; then
+              echo "::error::Could not create the database: $(reason "$created")"
+              exit 1
+            fi
+            DB_ID="$(jq -r '.result.uuid' <<<"$created")"
           fi
-          if [ -z "$DB_ID" ]; then
-            echo "::error::Could not find or create the D1 database."
+
+          if [ -z "$DB_ID" ] || [ "$DB_ID" = "null" ]; then
+            echo "::error::Could not determine the database id."
             exit 1
           fi
           echo "Using database $DB_ID"
