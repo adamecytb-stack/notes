@@ -43,6 +43,20 @@ import {
 } from './ui.js';
 import { idbGetAll } from './idb.js';
 import {
+  emptyEntry,
+  normalise,
+  computeStats,
+  environmentInsights,
+  nightKey,
+  tipFor,
+  DREAM_SIGNS,
+  LUCID_TRIGGERS,
+  DURATIONS,
+  ENDINGS,
+  PLACES,
+  SUBSTANCES,
+} from './dream.js';
+import {
   hasConsented,
   grantConsent,
   revokeConsent,
@@ -62,6 +76,7 @@ let composing = null; // { id, dreamedAt }
 const SCREENS = {
   lock: '#screen-lock',
   journal: '#screen-journal',
+  patterns: '#screen-patterns',
   settings: '#screen-settings',
 };
 
@@ -79,6 +94,7 @@ function showView(view, { push = true } = {}) {
     if (history.state?.view !== view) history.pushState(entry, '');
   }
   if (view === 'settings') refreshSettings();
+  if (view === 'patterns') renderPatterns();
 }
 
 window.addEventListener('popstate', (e) => {
@@ -221,9 +237,13 @@ function renderEntry(entry, index) {
 
   const { heading, excerpt } = summarise(entry);
 
+  if (entry.lucid) node.classList.add('entry--lucid');
+
   const body = el('div', 'entry__body');
   const title = el('h3', 'entry__title');
   if (entry.pending) title.appendChild(el('span', 'entry__flag'));
+  // Lucid dreams are the point of the whole app — they get to look different.
+  if (entry.lucid) title.appendChild(el('span', 'entry__lucid', 'lucid'));
   title.append(heading);
   body.appendChild(title);
   if (excerpt) body.appendChild(el('p', 'entry__excerpt', excerpt));
@@ -275,6 +295,145 @@ function summarise(entry) {
 
 $('#open-settings').addEventListener('click', () => showView('settings'));
 $('#settings-back').addEventListener('click', () => history.back());
+$('#open-patterns').addEventListener('click', () => showView('patterns'));
+$('#patterns-back').addEventListener('click', () => history.back());
+
+/* ============================================================== PATTERNS */
+
+const DAY_MS = 86_400_000;
+
+function renderPatterns() {
+  const entries = sortedEntries();
+  const stats = computeStats(entries);
+
+  $('#streak-n').textContent = String(stats.streak);
+  $('#streak-label').textContent =
+    stats.streak === 0
+      ? 'no streak yet — tonight starts one'
+      : stats.streak === 1
+        ? 'night so far'
+        : 'nights in a row';
+
+  $('#stat-lucid').textContent = String(stats.lucidCount);
+  $('#stat-rate').textContent = `${stats.lucidRate}%`;
+  $('#stat-total').textContent = String(stats.total);
+  $('#stat-longest').textContent = String(stats.longest);
+
+  renderCalendar(stats);
+  renderSigns(stats);
+  renderConditions(entries);
+}
+
+/**
+ * Six weeks ending today, as a grid of nights. A night is "logged" if anything
+ * was written for it; lucid nights glow.
+ */
+function renderCalendar(stats) {
+  const cal = $('#cal');
+  cal.replaceChildren();
+
+  const today = nightKey(Date.now());
+  const WEEKS = 6;
+  // Back up to the Monday of the week containing the earliest day shown.
+  const start = new Date(today - (WEEKS * 7 - 1) * DAY_MS);
+  const shift = (start.getDay() + 6) % 7; // Monday = 0
+  start.setDate(start.getDate() - shift);
+  start.setHours(0, 0, 0, 0);
+
+  for (const label of ['M', 'T', 'W', 'T', 'F', 'S', 'S']) {
+    cal.appendChild(el('span', 'cal__dow', label));
+  }
+
+  for (let i = 0; i < WEEKS * 7 + shift; i++) {
+    const key = start.getTime() + i * DAY_MS;
+    if (key > today) {
+      cal.appendChild(el('span', 'cal__cell cal__cell--future'));
+      continue;
+    }
+    const night = stats.nights.get(key);
+    const cell = el('button', 'cal__cell');
+    cell.type = 'button';
+    cell.textContent = String(new Date(key).getDate());
+    if (night) cell.classList.add(night.lucid ? 'is-lucid' : 'is-logged');
+    if (key === today) cell.classList.add('is-today');
+
+    const stamp = new Date(key).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    cell.setAttribute(
+      'aria-label',
+      night
+        ? `${stamp}: ${night.logged} dream${night.logged === 1 ? '' : 's'}${night.lucid ? ', lucid' : ''}`
+        : `${stamp}: nothing written`,
+    );
+    cell.addEventListener('click', () => {
+      if (!night) return toast('Nothing written that night');
+      toast(cell.getAttribute('aria-label'));
+    });
+    cal.appendChild(cell);
+  }
+
+  const first = new Date(start);
+  const label =
+    first.getMonth() === new Date(today).getMonth()
+      ? new Date(today).toLocaleDateString(undefined, { month: 'long' })
+      : `${first.toLocaleDateString(undefined, { month: 'short' })} – ${new Date(today).toLocaleDateString(undefined, { month: 'short' })}`;
+  $('#cal-label').textContent = `Last six weeks · ${label}`;
+}
+
+function renderBars(node, rows, max) {
+  node.replaceChildren();
+  for (const row of rows) {
+    const line = el('div', 'bar');
+    line.appendChild(el('span', 'bar__label', row.label));
+    const track = el('span', 'bar__track');
+    const fill = el('span', 'bar__fill');
+    fill.style.setProperty('--w', `${Math.round((row.value / max) * 100)}%`);
+    if (row.warm) fill.classList.add('bar__fill--warm');
+    track.appendChild(fill);
+    line.appendChild(track);
+    line.appendChild(el('span', 'bar__value', row.display));
+    node.appendChild(line);
+  }
+}
+
+function renderSigns(stats) {
+  const rows = [...stats.signTally.entries()]
+    .map(([label, value]) => ({ label, value, display: String(value) }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+
+  $('#signs-group').classList.toggle('hidden', rows.length === 0);
+  if (!rows.length) return;
+
+  const top = rows[0];
+  $('#signs-note').textContent =
+    top.value >= 3
+      ? `"${top.label}" is in ${top.value} of your dreams. Picture it before sleep and tell yourself that when you see it, you will know you are dreaming.`
+      : 'Tag the odd parts of a few more dreams and the recurring ones will surface here.';
+
+  renderBars($('#signs'), rows, rows[0].value);
+}
+
+function renderConditions(entries) {
+  const insights = environmentInsights(entries);
+  $('#cond-group').classList.toggle('hidden', insights.length === 0);
+  if (!insights.length) {
+    return;
+  }
+
+  $('#cond-note').textContent =
+    'Share of nights that went lucid, for conditions you have logged at least three times. Small numbers — treat it as a hint, not a finding.';
+
+  renderBars(
+    $('#conditions'),
+    insights.map((i) => ({
+      label: i.label,
+      value: i.rate,
+      display: `${i.rate}% of ${i.total}`,
+      warm: i.rate > 0,
+    })),
+    Math.max(100, ...insights.map((i) => i.rate)),
+  );
+}
 
 /* ================================================================ COMPOSE */
 
@@ -283,6 +442,222 @@ const bodyInput = $('#compose-body');
 const statusNode = $('#compose-status');
 let saveTimer = null;
 let dirty = false;
+
+/* --------------------------------------------------- the reflect controls */
+
+/** Working copy of everything the questions collect for the open entry. */
+let draft = emptyEntry();
+
+/** Multi-select chip group. */
+function chipGroup(node, options, { onChange }) {
+  node.replaceChildren();
+  for (const label of options) {
+    const chip = el('button', 'chip', label);
+    chip.type = 'button';
+    chip.setAttribute('aria-pressed', 'false');
+    chip.addEventListener('click', () => {
+      const on = chip.getAttribute('aria-pressed') === 'true';
+      chip.setAttribute('aria-pressed', String(!on));
+      onChange(
+        [...node.querySelectorAll('[aria-pressed="true"]')].map((c) => c.textContent),
+      );
+    });
+    node.appendChild(chip);
+  }
+}
+
+/** Pick-one chip group. */
+function chipOne(node, options, { onChange }) {
+  node.replaceChildren();
+  for (const label of options) {
+    const chip = el('button', 'chip', label);
+    chip.type = 'button';
+    chip.setAttribute('aria-pressed', 'false');
+    chip.addEventListener('click', () => {
+      const already = chip.getAttribute('aria-pressed') === 'true';
+      for (const c of node.children) c.setAttribute('aria-pressed', 'false');
+      chip.setAttribute('aria-pressed', String(!already));
+      onChange(already ? '' : label);
+    });
+    node.appendChild(chip);
+  }
+}
+
+/** 1–5 rating. */
+function scale(node, { onChange }) {
+  node.replaceChildren();
+  for (let n = 1; n <= 5; n++) {
+    const dot = el('button', 'scale__dot', String(n));
+    dot.type = 'button';
+    dot.setAttribute('aria-pressed', 'false');
+    dot.addEventListener('click', () => {
+      const already = dot.getAttribute('aria-pressed') === 'true';
+      const value = already ? 0 : n;
+      [...node.children].forEach((d, i) => d.setAttribute('aria-pressed', String(i < value)));
+      onChange(value);
+    });
+    node.appendChild(dot);
+  }
+}
+
+function setChips(node, values) {
+  const wanted = new Set(Array.isArray(values) ? values : [values]);
+  for (const chip of node.children) {
+    chip.setAttribute('aria-pressed', String(wanted.has(chip.textContent)));
+  }
+}
+
+function setScale(node, value) {
+  [...node.children].forEach((d, i) => d.setAttribute('aria-pressed', String(i < value)));
+}
+
+const mark = () => {
+  dirty = true;
+  statusNode.textContent = 'Saving…';
+  statusNode.classList.remove('is-saved');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => void commit({ silent: true }), 2000);
+  refreshTip();
+};
+
+chipOne($('#q-trigger'), LUCID_TRIGGERS, {
+  onChange: (v) => {
+    draft.trigger = v;
+    mark();
+  },
+});
+chipOne($('#q-duration'), DURATIONS, {
+  onChange: (v) => {
+    draft.duration = v;
+    mark();
+  },
+});
+chipOne($('#q-ending'), ENDINGS, {
+  onChange: (v) => {
+    draft.ending = v;
+    mark();
+  },
+});
+chipOne($('#q-place'), PLACES, {
+  onChange: (v) => {
+    draft.env.place = v;
+    mark();
+  },
+});
+chipGroup($('#q-signs'), DREAM_SIGNS, {
+  onChange: (v) => {
+    draft.signs = v;
+    mark();
+  },
+});
+chipGroup($('#q-substances'), SUBSTANCES, {
+  onChange: (v) => {
+    draft.env.substances = v;
+    mark();
+  },
+});
+scale($('#q-excitement'), {
+  onChange: (v) => {
+    draft.excitement = v;
+    mark();
+  },
+});
+scale($('#q-vividness'), {
+  onChange: (v) => {
+    draft.vividness = v;
+    mark();
+  },
+});
+
+$('#q-lucid').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-lucid]');
+  if (!btn) return;
+  draft.lucid = btn.dataset.lucid === 'yes';
+  for (const b of $('#q-lucid').children) {
+    b.setAttribute('aria-pressed', String(b === btn));
+  }
+  showBranch();
+  mark();
+});
+
+// Free-text fields all follow the same shape.
+const TEXT_FIELDS = [
+  ['#q-prior', (v) => (draft.priorActivity = v)],
+  ['#q-actions', (v) => (draft.actions = v)],
+  ['#q-theme', (v) => (draft.theme = v)],
+  ['#q-bedtime', (v) => (draft.env.bedtime = v)],
+  ['#q-envnotes', (v) => (draft.env.notes = v)],
+  ['#q-trigger-other', (v) => v && (draft.trigger = v)],
+];
+for (const [sel, set] of TEXT_FIELDS) {
+  $(sel).addEventListener('input', (e) => {
+    set(e.target.value);
+    mark();
+  });
+}
+
+$('#q-signs-other').addEventListener('input', (e) => {
+  // Typed signs live alongside the tapped ones without clobbering them.
+  const tapped = [...$('#q-signs').querySelectorAll('[aria-pressed="true"]')].map(
+    (c) => c.textContent,
+  );
+  draft.signs = e.target.value.trim() ? [...tapped, e.target.value.trim()] : tapped;
+  mark();
+});
+
+$('#q-woke').addEventListener('click', (e) => {
+  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+  e.currentTarget.setAttribute('aria-pressed', String(on));
+  draft.env.wokeInNight = on;
+  mark();
+});
+
+function showBranch() {
+  const answered = draft.lucid !== null && draft.lucid !== undefined;
+  $('#branch-lucid').classList.toggle('hidden', draft.lucid !== true);
+  $('#branch-ordinary').classList.toggle('hidden', draft.lucid !== false);
+  $('#branch-tail').classList.toggle('hidden', !answered);
+}
+
+function refreshTip() {
+  if ($('#branch-tail').classList.contains('hidden')) return;
+  const tip = tipFor(
+    { ...draft, title: titleInput.value, body: bodyInput.value },
+    computeStats(sortedEntries()),
+  );
+  $('#tip-title').textContent = tip.title;
+  $('#tip-body').textContent = tip.body;
+}
+
+/** Loads an existing entry's answers back into the controls. */
+function fillReflect(entry) {
+  draft = normalise(entry);
+
+  setChips($('#q-trigger'), draft.trigger);
+  setChips($('#q-duration'), draft.duration);
+  setChips($('#q-ending'), draft.ending);
+  setChips($('#q-place'), draft.env.place);
+  setChips($('#q-signs'), draft.signs);
+  setChips($('#q-substances'), draft.env.substances);
+  setScale($('#q-excitement'), draft.excitement);
+  setScale($('#q-vividness'), draft.vividness);
+
+  $('#q-prior').value = draft.priorActivity;
+  $('#q-actions').value = draft.actions;
+  $('#q-theme').value = draft.theme;
+  $('#q-bedtime').value = draft.env.bedtime;
+  $('#q-envnotes').value = draft.env.notes;
+  $('#q-trigger-other').value = '';
+  $('#q-signs-other').value = '';
+  $('#q-woke').setAttribute('aria-pressed', String(draft.env.wokeInNight));
+
+  const isNew = !entry;
+  for (const b of $('#q-lucid').children) {
+    b.setAttribute('aria-pressed', String(!isNew && draft.lucid === (b.dataset.lucid === 'yes')));
+  }
+  showBranch();
+  refreshTip();
+}
 
 /**
  * Opens the writing sheet. Focus happens synchronously inside the tap handler
@@ -301,6 +676,11 @@ function openCompose(entry) {
   $('#compose-delete').classList.toggle('hidden', !entry);
   updateWhenLabel();
 
+  fillReflect(entry);
+  // The questions stay out of the way until there is a dream to ask about.
+  $('#reflect').classList.toggle('hidden', !(entry?.body || entry?.title));
+  $('#compose-scroll').scrollTop = 0;
+
   showView('compose');
   bodyInput.focus();
   if (entry) bodyInput.setSelectionRange(bodyInput.value.length, bodyInput.value.length);
@@ -314,13 +694,13 @@ $('#record').addEventListener('click', () => openCompose(null));
 
 for (const input of [titleInput, bodyInput]) {
   input.addEventListener('input', () => {
-    dirty = true;
-    statusNode.textContent = 'Saving…';
-    statusNode.classList.remove('is-saved');
-    clearTimeout(saveTimer);
     // Encrypted autosave: after two seconds of stillness the dream is safe,
-    // whether or not anyone taps Keep.
-    saveTimer = setTimeout(() => void commit({ silent: true }), 2000);
+    // whether or not anyone taps Keep. mark() also reveals the questions once
+    // there is actually a dream written down.
+    if (bodyInput.value.trim() || titleInput.value.trim()) {
+      $('#reflect').classList.remove('hidden');
+    }
+    mark();
   });
 }
 
@@ -331,7 +711,13 @@ async function commit({ silent = false } = {}) {
   if (!title && !body) return null;
 
   try {
-    const id = await saveEntry({ id: composing.id, title, body, dreamedAt: composing.dreamedAt });
+    const id = await saveEntry({
+      ...draft,
+      id: composing.id,
+      title,
+      body,
+      dreamedAt: composing.dreamedAt,
+    });
     composing.id = id;
     // Once it exists it can be thrown away again, even if it was new a moment ago.
     $('#compose-delete').classList.remove('hidden');

@@ -102,6 +102,7 @@ Pages**. The account ID is in the right-hand column (or in the URL after
 | `CLOUDFLARE_API_TOKEN` | the token from step 1 |
 | `CLOUDFLARE_ACCOUNT_ID` | the id from step 2 |
 | `SETUP_CODE` | invent one — you and your friend each use it once |
+| `GEMINI_API_KEY` | *optional* — from [aistudio.google.com/apikey](https://aistudio.google.com/apikey), enables the dream companion |
 
 **4. Run it** — **Actions → Deploy Nocturne → Run workflow**.
 
@@ -272,17 +273,40 @@ and deliberately nothing more.
 - **Lock screen** — sign in, or create one of the two accounts.
 - **Journal** — dreams grouped by the night they belong to. Anything before noon
   files under the previous evening, because a dream at 3am on Tuesday was
-  Monday night's.
+  Monday night's. Lucid ones are marked and read warm.
 - **Writing** — one tap from launch to a blinking cursor. No fields to fill in,
   no chrome. It saves itself, encrypted, two seconds after you stop typing, so a
   dream is never lost to a dropped phone or a closed app.
+- **The questions afterwards** — once something is written, the flow asks the
+  one that matters: *did you realise you were dreaming?* Answering opens the
+  branch that fits.
+  - **Lucid** — what tipped you off, what you were doing the moment before
+    awareness arrived, what you did once you knew, how excited you were, how
+    long it lasted, how it ended.
+  - **Not lucid** — which parts could not have happened awake. Those become
+    your dream signs.
+  - Then vividness, and an optional block for the night's conditions: where you
+    slept, bedtime, whether you woke in the night, anything before bed.
+  - Every question is skippable. Keep is live the whole time.
+- **A tip that fits what just happened** — not generic technique. Woke straight
+  up from a lucid dream and it tells you to rub your hands together next time;
+  tagged a sign that is now in three dreams and it tells you to rehearse it
+  before sleep.
+- **Patterns** — current streak, longest run, lucid count and rate, a six-week
+  calendar with lucid nights lit, your most frequent dream signs, and which
+  conditions line up with going lucid.
+- **The dream companion** — optional, off by default. See above.
 - **Works with no signal** — the app opens from cache and entries written
   offline are held on the phone and pushed when the network returns.
 - **Settings** — account and passphrase, theme, text size, lock behaviour,
-  reminders, export, delete.
+  the companion, reminders, export, delete.
 
-Not built, on purpose: tags, search, mood tracking, sharing, statistics,
-dream analysis.
+Everything above the companion is encrypted before it leaves the phone — the
+lucidity answers, the dream signs, the sleep conditions, all of it. Only the
+timestamp stays in the clear.
+
+Not built yet: shared lucid dreams between the two accounts, and scheduled
+reality-check notifications.
 
 ### The design
 

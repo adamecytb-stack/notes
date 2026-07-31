@@ -121,6 +121,20 @@ jobs:
           SETUP_CODE: ${{ secrets.SETUP_CODE }}
         run: printf '%s' "$SETUP_CODE" | npx wrangler secret put SETUP_CODE
 
+      - name: Set the Gemini key, if there is one
+        # Optional: without it the app works exactly as before, minus the
+        # dream companion. Removing the repo secret does not remove the
+        # Worker secret — delete that with `wrangler secret delete`.
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
+            echo "Dream companion enabled."
+          else
+            echo "No GEMINI_API_KEY secret — skipping the dream companion."
+          fi
+
       - name: Set the salt pepper once, and never again
         # This value must stay stable for the lifetime of the journal, so it is
         # generated here only if the Worker does not already have one.

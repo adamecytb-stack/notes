@@ -73,6 +73,22 @@
             stroke-linejoin="round"
           />
         </symbol>
+        <symbol id="i-spark" viewBox="0 0 24 24">
+          <path
+            d="M12 3.5c.6 3.6 1.9 5 5.5 5.5-3.6.6-4.9 1.9-5.5 5.5-.6-3.6-1.9-4.9-5.5-5.5 3.6-.5 4.9-1.9 5.5-5.5Z"
+            fill="currentColor"
+          />
+          <path
+            d="M18.5 14c.3 1.9 1 2.6 2.9 2.9-1.9.3-2.6 1-2.9 2.9-.3-1.9-1-2.6-2.9-2.9 1.9-.3 2.6-1 2.9-2.9Z"
+            fill="currentColor"
+            opacity=".55"
+          />
+          <path
+            d="M6 15c.2 1.4.7 1.9 2.1 2.1-1.4.2-1.9.7-2.1 2.1-.2-1.4-.7-1.9-2.1-2.1C5.3 16.9 5.8 16.4 6 15Z"
+            fill="currentColor"
+            opacity=".4"
+          />
+        </symbol>
         <symbol id="i-quill" viewBox="0 0 24 24">
           <path
             d="M4 20s1.6-6.4 6-10.8C13.4 5.8 19 4 19 4s-1 6-4.4 9.4C10.2 17.8 4 20 4 20Z"
@@ -163,9 +179,14 @@
                 <h1 class="masthead__greeting" id="greeting">Good night</h1>
                 <p class="masthead__count" id="entry-count"></p>
               </div>
-              <button class="iconbtn" type="button" id="open-settings" aria-label="Settings">
-                <svg width="22" height="22" aria-hidden="true"><use href="#i-gear" /></svg>
-              </button>
+              <div class="masthead__acts">
+                <button class="iconbtn" type="button" id="open-patterns" aria-label="Patterns">
+                  <svg width="22" height="22" aria-hidden="true"><use href="#i-spark" /></svg>
+                </button>
+                <button class="iconbtn" type="button" id="open-settings" aria-label="Settings">
+                  <svg width="22" height="22" aria-hidden="true"><use href="#i-gear" /></svg>
+                </button>
+              </div>
             </div>
           </header>
 
@@ -182,6 +203,67 @@
             <svg width="19" height="19" aria-hidden="true"><use href="#i-quill" /></svg>
             Record a dream
           </button>
+        </div>
+      </section>
+
+      <!-- ================================================ PATTERNS ==== -->
+      <section class="screen" id="screen-patterns" aria-label="Patterns">
+        <div class="subhead">
+          <button class="back" type="button" id="patterns-back">
+            <svg width="8" height="14" aria-hidden="true"><use href="#i-back" /></svg>
+            Journal
+          </button>
+        </div>
+
+        <div class="scroll">
+          <div class="patterns">
+            <h1 class="t-screen">Patterns</h1>
+
+            <div class="streak" id="streak">
+              <span class="streak__n" id="streak-n">0</span>
+              <span class="streak__label" id="streak-label">nights in a row</span>
+            </div>
+
+            <div class="tiles">
+              <div class="tile">
+                <span class="tile__n" id="stat-lucid">0</span>
+                <span class="tile__label">lucid</span>
+              </div>
+              <div class="tile">
+                <span class="tile__n" id="stat-rate">0%</span>
+                <span class="tile__label">rate</span>
+              </div>
+              <div class="tile">
+                <span class="tile__n" id="stat-total">0</span>
+                <span class="tile__label">dreams</span>
+              </div>
+              <div class="tile">
+                <span class="tile__n" id="stat-longest">0</span>
+                <span class="tile__label">best run</span>
+              </div>
+            </div>
+
+            <div class="group">
+              <p class="t-meta group__label" id="cal-label">This month</p>
+              <div class="cal" id="cal"></div>
+              <div class="legend">
+                <span class="legend__item"><i class="dot dot--logged"></i> wrote something</span>
+                <span class="legend__item"><i class="dot dot--lucid"></i> lucid</span>
+              </div>
+            </div>
+
+            <div class="group" id="signs-group">
+              <p class="t-meta group__label">Your dream signs</p>
+              <p class="note" id="signs-note"></p>
+              <div class="bars" id="signs"></div>
+            </div>
+
+            <div class="group" id="cond-group">
+              <p class="t-meta group__label">What lines up with going lucid</p>
+              <p class="note" id="cond-note"></p>
+              <div class="bars" id="conditions"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -389,7 +471,7 @@
         <button class="btn btn--quiet" type="button" id="compose-delete">Delete</button>
       </div>
 
-      <div class="compose">
+      <div class="compose" id="compose-scroll">
         <input
           class="compose__title"
           id="compose-title"
@@ -406,6 +488,125 @@
           spellcheck="true"
           autocapitalize="sentences"
         ></textarea>
+
+        <!-- Everything below appears once there is something written. It is
+             all optional — Keep is always live. -->
+        <div class="reflect hidden" id="reflect">
+          <div class="reflect__rule"><span class="t-meta">The part that matters</span></div>
+
+          <section class="q">
+            <h3 class="q__ask">Did you realise you were dreaming?</h3>
+            <div class="choice choice--two" id="q-lucid">
+              <button type="button" data-lucid="yes">Yes — I was lucid</button>
+              <button type="button" data-lucid="no">No</button>
+            </div>
+          </section>
+
+          <!-- Lucid branch -->
+          <div class="hidden" id="branch-lucid">
+            <section class="q">
+              <h3 class="q__ask">What tipped you off?</h3>
+              <div class="chips" id="q-trigger"></div>
+              <input class="input input--quiet" id="q-trigger-other" type="text"
+                     placeholder="Or describe it" autocomplete="off" />
+            </section>
+
+            <section class="q">
+              <h3 class="q__ask">What were you doing just before you knew?</h3>
+              <textarea class="input input--quiet" id="q-prior" rows="2"
+                        placeholder="The moment before awareness arrived"></textarea>
+            </section>
+
+            <section class="q">
+              <h3 class="q__ask">What did you do once you knew?</h3>
+              <textarea class="input input--quiet" id="q-actions" rows="3"
+                        placeholder="Flew, looked at your hands, tried to change something…"></textarea>
+            </section>
+
+            <section class="q">
+              <h3 class="q__ask">How excited were you?</h3>
+              <div class="scale" id="q-excitement"></div>
+              <p class="q__note">Excitement is the usual reason lucid dreams end early.</p>
+            </section>
+
+            <section class="q">
+              <h3 class="q__ask">How long did it last?</h3>
+              <div class="chips chips--single" id="q-duration"></div>
+            </section>
+
+            <section class="q">
+              <h3 class="q__ask">How did it end?</h3>
+              <div class="chips chips--single" id="q-ending"></div>
+            </section>
+          </div>
+
+          <!-- Ordinary-dream branch -->
+          <div class="hidden" id="branch-ordinary">
+            <section class="q">
+              <h3 class="q__ask">Anything in it that could not happen awake?</h3>
+              <p class="q__note">
+                These build your dream signs — the things you can learn to notice from inside.
+              </p>
+              <div class="chips" id="q-signs"></div>
+              <input class="input input--quiet" id="q-signs-other" type="text"
+                     placeholder="Something else that was off" autocomplete="off" />
+            </section>
+
+            <section class="q">
+              <h3 class="q__ask">What did it seem to be about?</h3>
+              <textarea class="input input--quiet" id="q-theme" rows="2"
+                        placeholder="A feeling, a worry, a place — whatever it was circling"></textarea>
+            </section>
+          </div>
+
+          <!-- Shared tail -->
+          <div class="hidden" id="branch-tail">
+            <section class="q">
+              <h3 class="q__ask">How vivid was it?</h3>
+              <div class="scale" id="q-vividness"></div>
+            </section>
+
+            <details class="fold">
+              <summary class="fold__head">
+                <span class="fold__title">Last night's conditions</span>
+                <span class="fold__hint">Worth logging — patterns show up here</span>
+              </summary>
+              <div class="fold__body">
+                <section class="q">
+                  <h3 class="q__ask">Where did you sleep?</h3>
+                  <div class="chips chips--single" id="q-place"></div>
+                </section>
+                <section class="q">
+                  <h3 class="q__ask">Anything before bed?</h3>
+                  <div class="chips" id="q-substances"></div>
+                </section>
+                <section class="q">
+                  <div class="switchrow">
+                    <span class="q__ask q__ask--inline">Did you wake during the night?</span>
+                    <button class="toggle" type="button" id="q-woke" aria-pressed="false"
+                            aria-label="Woke during the night"></button>
+                  </div>
+                  <p class="q__note">The setup for wake-back-to-bed, the most effective technique there is.</p>
+                </section>
+                <section class="q">
+                  <h3 class="q__ask">Bedtime</h3>
+                  <input class="input input--quiet" id="q-bedtime" type="time" />
+                </section>
+                <section class="q">
+                  <h3 class="q__ask">Anything else about the night?</h3>
+                  <textarea class="input input--quiet" id="q-envnotes" rows="2"
+                            placeholder="Stayed at a friend's, stressed, unusually tired…"></textarea>
+                </section>
+              </div>
+            </details>
+
+            <div class="tip" id="tip">
+              <p class="t-meta tip__label">What to try</p>
+              <h4 class="tip__title" id="tip-title"></h4>
+              <p class="tip__body" id="tip-body"></p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="sheet__foot">

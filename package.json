@@ -14,7 +14,8 @@
     "test:ai": "node test/ai.test.mjs",
     "stub:gemini": "node test/gemini-stub.mjs",
     "shots": "node test/screenshots.mjs",
-    "icons": "python3 scripts/make-icons.py"
+    "icons": "python3 scripts/make-icons.py",
+    "test:lucid": "node test/lucid.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

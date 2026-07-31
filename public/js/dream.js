@@ -18,7 +18,9 @@ export function emptyEntry() {
     v: 2,
     title: '',
     body: '',
-    lucid: false,
+    // null = not asked yet, which is a different thing from answering "no".
+    // Everything that reads this only tests truthiness, so null behaves as no.
+    lucid: null,
     vividness: 0, // 1–5, 0 = unanswered
 
     // Ordinary dreams: the raw material for recognising a dream sign later.
@@ -108,13 +110,13 @@ export const SUBSTANCES = ['Caffeine', 'Alcohol', 'Late meal', 'Screen right bef
  * tip fires on a specific condition so what you read is about the dream you
  * just wrote down.
  */
+/*
+ * Order is priority — the first match wins. Tips that change what happens next
+ * time are deliberately above tips that only comment on what happened, so a
+ * first lucid dream that ended too early gets the stabilising advice rather
+ * than congratulations.
+ */
 const TIPS = [
-  {
-    id: 'first-lucid',
-    when: (e, s) => e.lucid && s.lucidCount <= 1,
-    title: 'That was your first one here',
-    body: 'Whatever you did in the hours before this, write it in the notes below. The first few lucid dreams are the cheapest data you will ever get about what works for you.',
-  },
   {
     id: 'woke-immediately',
     when: (e) => e.lucid && e.ending === 'I woke straight up',
@@ -122,16 +124,22 @@ const TIPS = [
     body: 'Waking instantly is almost always excitement — the jolt pulls you out. Two things reliably hold the dream: spin slowly on the spot, or rub your palms together and stare at them. Both give your senses something to hold onto instead of the bedroom.',
   },
   {
-    id: 'high-excitement',
-    when: (e) => e.lucid && e.excitement >= 4 && e.ending !== 'I woke straight up',
-    title: 'You held it despite the adrenaline',
-    body: 'Getting excited and not waking up is the hard part, and you did it. Whatever you did in those first seconds is your technique now — it is written above, so read it back before bed tonight.',
-  },
-  {
     id: 'faded',
     when: (e) => e.lucid && e.ending === 'It faded and I lost awareness',
     title: 'Say it out loud inside the dream',
     body: 'Awareness leaks away quietly. Repeating "this is a dream" every few seconds, out loud in the dream, keeps it anchored. Touching things — a wall, the ground — works too.',
+  },
+  {
+    id: 'first-lucid',
+    when: (e, s) => e.lucid && s.lucidCount <= 1,
+    title: 'That was your first one here',
+    body: 'Whatever you did in the hours before this, write it in the notes below. The first few lucid dreams are the cheapest data you will ever get about what works for you.',
+  },
+  {
+    id: 'high-excitement',
+    when: (e) => e.lucid && e.excitement >= 4 && e.ending !== 'I woke straight up',
+    title: 'You held it despite the adrenaline',
+    body: 'Getting excited and not waking up is the hard part, and you did it. Whatever you did in those first seconds is your technique now — it is written above, so read it back before bed tonight.',
   },
   {
     id: 'short',
