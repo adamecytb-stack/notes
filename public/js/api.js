@@ -45,4 +45,14 @@ export const api = {
 
   /** The only call that carries dream text in the clear. */
   ai: (prompt) => request('POST', '/api/ai', { prompt }),
+
+  getKeys: () => request('GET', '/api/keys'),
+  publishKeys: (data) => request('POST', '/api/keys', data),
+  listShares: () => request('GET', '/api/shares'),
+  putShare: (id, data) => request('PUT', `/api/shares/${id}`, data),
+  unshare: (id) => request('DELETE', `/api/shares/${id}`),
+
+  pushSubscribe: (data) => request('POST', '/api/push/subscribe', data),
+  pushUnsubscribe: (endpoint) => request('POST', '/api/push/unsubscribe', { endpoint }),
+  pushTest: () => request('POST', '/api/push/test'),
 };

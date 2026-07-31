@@ -518,6 +518,329 @@ async function handleRekey(request, env, session) {
   return json({ ok: true, rekeyed: body.entries.length });
 }
 
+/* ---------------------------------------------------------------- shares  */
+
+/** The other account, if there is one. Two seats means "the peer" is unambiguous. */
+async function findPeer(env, userId) {
+  return env.DB.prepare(
+    'SELECT id, username, public_key FROM users WHERE id != ? ORDER BY created_at LIMIT 1',
+  )
+    .bind(userId)
+    .first();
+}
+
+/** Publishes this account's public key and stores the wrapped private half. */
+async function handlePublishKeys(request, env, session) {
+  const body = await readJson(request);
+  if (!isB64(body.publicKey, 256)) return bad('Invalid public key');
+  if (!isB64(body.wrappedPrivate, 4096)) return bad('Invalid wrapped key');
+  if (!isB64(body.wrappedIv, 32)) return bad('Invalid iv');
+
+  // Republishing would strand every share already wrapped to the old key.
+  const existing = await env.DB.prepare('SELECT public_key FROM users WHERE id = ?')
+    .bind(session.userId)
+    .first();
+  if (existing?.public_key && existing.public_key !== body.publicKey) {
+    return bad('This account already has sharing keys', 409);
+  }
+
+  await env.DB.prepare(
+    'UPDATE users SET public_key = ?, wrapped_private = ?, wrapped_iv = ? WHERE id = ?',
+  )
+    .bind(body.publicKey, body.wrappedPrivate, body.wrappedIv, session.userId)
+    .run();
+  return json({ ok: true });
+}
+
+async function handleGetKeys(env, session) {
+  const me = await env.DB.prepare(
+    'SELECT public_key, wrapped_private, wrapped_iv FROM users WHERE id = ?',
+  )
+    .bind(session.userId)
+    .first();
+  const peer = await findPeer(env, session.userId);
+  return json({
+    publicKey: me?.public_key || null,
+    wrappedPrivate: me?.wrapped_private || null,
+    wrappedIv: me?.wrapped_iv || null,
+    peer: peer ? { username: peer.username, publicKey: peer.public_key || null } : null,
+  });
+}
+
+async function handlePutShare(request, env, session, entryId) {
+  const body = await readJson(request);
+  if (!isB64(body.iv, 32) || !isB64(body.wrapIv, 32)) return bad('Invalid iv');
+  if (!isB64(body.ciphertext, MAX_CIPHERTEXT_CHARS)) return bad('Entry is too large');
+  if (!isB64(body.wrappedKey, 512)) return bad('Invalid wrapped key');
+  if (!isTimestamp(body.dreamedAt)) return bad('Invalid date');
+
+  const owned = await env.DB.prepare(
+    'SELECT id FROM entries WHERE id = ? AND user_id = ? AND deleted_at IS NULL',
+  )
+    .bind(entryId, session.userId)
+    .first();
+  if (!owned) return bad('No such entry', 404);
+
+  const peer = await findPeer(env, session.userId);
+  if (!peer) return bad('Nobody to share with yet', 409);
+  if (!peer.public_key) return bad('They have not opened the app since sharing was added', 409);
+
+  const now = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO shares (entry_id, owner_id, recipient_id, iv, ciphertext, wrapped_key, wrap_iv,
+                         dreamed_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(entry_id) DO UPDATE SET
+       iv = excluded.iv, ciphertext = excluded.ciphertext,
+       wrapped_key = excluded.wrapped_key, wrap_iv = excluded.wrap_iv,
+       dreamed_at = excluded.dreamed_at, updated_at = excluded.updated_at
+     WHERE shares.owner_id = excluded.owner_id`,
+  )
+    .bind(entryId, session.userId, peer.id, body.iv, body.ciphertext, body.wrappedKey,
+      body.wrapIv, body.dreamedAt, now, now)
+    .run();
+
+  return json({ ok: true, sharedWith: peer.username });
+}
+
+async function handleUnshare(env, session, entryId) {
+  await env.DB.prepare('DELETE FROM shares WHERE entry_id = ? AND owner_id = ?')
+    .bind(entryId, session.userId)
+    .run();
+  return json({ ok: true });
+}
+
+/** Everything the other person has shared with me, plus what I've shared out. */
+async function handleListShares(env, session) {
+  const inbox = await env.DB.prepare(
+    `SELECT s.entry_id, s.iv, s.ciphertext, s.wrapped_key, s.wrap_iv, s.dreamed_at,
+            s.updated_at, u.username AS from_username
+       FROM shares s JOIN users u ON u.id = s.owner_id
+      WHERE s.recipient_id = ?
+      ORDER BY s.dreamed_at DESC`,
+  )
+    .bind(session.userId)
+    .all();
+
+  const mine = await env.DB.prepare('SELECT entry_id FROM shares WHERE owner_id = ?')
+    .bind(session.userId)
+    .all();
+
+  const peer = await findPeer(env, session.userId);
+  return json({
+    inbox: inbox.results ?? [],
+    sharedByMe: (mine.results ?? []).map((r) => r.entry_id),
+    peer: peer ? { username: peer.username, publicKey: peer.public_key || null } : null,
+  });
+}
+
+/* ------------------------------------------------------------ web push    */
+
+/**
+ * Push is sent with no payload at all.
+ *
+ * A payload would have to be encrypted per RFC 8291 (ECDH against the
+ * subscription key, HKDF, an aes128gcm record). The reminder text is generic —
+ * "do a reality check" — so it lives in the service worker instead, and the
+ * push is a bare authenticated poke. Less code, less to get wrong, and nothing
+ * personal crosses the wire.
+ */
+function b64urlFromBytes(bytes) {
+  return toB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function b64urlFromString(str) {
+  return b64urlFromBytes(te.encode(str));
+}
+
+function bytesFromB64url(str) {
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Signs the VAPID JWT that proves this server owns the application key. */
+async function vapidHeaders(env, endpoint) {
+  const { origin } = new URL(endpoint);
+  const header = b64urlFromString(JSON.stringify({ typ: 'JWT', alg: 'ES256' }));
+  const claims = b64urlFromString(
+    JSON.stringify({
+      aud: origin,
+      exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60,
+      sub: env.VAPID_SUBJECT || 'mailto:nocturne@example.com',
+    }),
+  );
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    bytesFromB64url(env.VAPID_PRIVATE_KEY),
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign'],
+  );
+  // WebCrypto returns raw r||s, which is exactly what JWS ES256 wants.
+  const sig = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    key,
+    te.encode(`${header}.${claims}`),
+  );
+
+  return {
+    Authorization: `vapid t=${header}.${claims}.${b64urlFromBytes(sig)}, k=${env.VAPID_PUBLIC_KEY}`,
+    TTL: '3600',
+    'Content-Length': '0',
+  };
+}
+
+async function sendPush(env, endpoint) {
+  const res = await fetch(endpoint, { method: 'POST', headers: await vapidHeaders(env, endpoint) });
+  return res.status;
+}
+
+async function handleSubscribe(request, env, session) {
+  const body = await readJson(request);
+  // Real push endpoints are always https. The escape hatch exists only so the
+  // test suite can point at a local stub, and is never set in production.
+  const allowInsecure = env.PUSH_ALLOW_INSECURE === '1';
+  const scheme = allowInsecure ? /^https?:\/\// : /^https:\/\//;
+  if (typeof body.endpoint !== 'string' || !scheme.test(body.endpoint)) {
+    return bad('Invalid subscription');
+  }
+  if (body.endpoint.length > 2048) return bad('Invalid subscription');
+
+  // Range-checked, not just shape-checked: "25:99" matches HH:MM but is not a
+  // time, and would sit in the table forever never matching a clock.
+  const clean = (t) => {
+    const m = /^(\d{2}):(\d{2})$/.exec(t || '');
+    if (!m) return '';
+    const [, h, min] = m;
+    return Number(h) < 24 && Number(min) < 60 ? t : '';
+  };
+  const morning = clean(body.morningTime || '');
+  const checks = String(body.checkTimes || '')
+    .split(',')
+    .map((t) => clean(t.trim()))
+    .filter(Boolean)
+    .slice(0, 8)
+    .join(',');
+  const tz = typeof body.timezone === 'string' && body.timezone.length < 64 ? body.timezone : 'UTC';
+
+  await env.DB.prepare(
+    `INSERT INTO push_subscriptions (id, user_id, endpoint, timezone, morning_time, check_times, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(endpoint) DO UPDATE SET
+       timezone = excluded.timezone,
+       morning_time = excluded.morning_time,
+       check_times = excluded.check_times`,
+  )
+    .bind(newId(), session.userId, body.endpoint, tz, morning, checks, Date.now())
+    .run();
+
+  return json({ ok: true });
+}
+
+async function handleUnsubscribe(request, env, session) {
+  const body = await readJson(request);
+  await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?')
+    .bind(session.userId, body.endpoint || '')
+    .run();
+  return json({ ok: true });
+}
+
+/** Sends one immediately so the user can confirm it actually arrives. */
+async function handleTestPush(request, env, session) {
+  if (!env.VAPID_PRIVATE_KEY) return bad('Reminders are not configured on this server', 503);
+  const subs = await env.DB.prepare(
+    'SELECT endpoint FROM push_subscriptions WHERE user_id = ?',
+  )
+    .bind(session.userId)
+    .all();
+  if (!subs.results?.length) return bad('This phone is not registered for reminders', 404);
+
+  const results = [];
+  for (const sub of subs.results) {
+    try {
+      results.push(await sendPush(env, sub.endpoint));
+    } catch {
+      results.push(0);
+    }
+  }
+  const ok = results.some((s) => s >= 200 && s < 300);
+  return json({ ok, statuses: results }, ok ? 200 : 502);
+}
+
+/** Local wall-clock time for a subscription, as minutes since midnight. */
+function localSlot(timezone, now) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    }).formatToParts(now);
+    const get = (t) => parts.find((p) => p.type === t)?.value ?? '00';
+    return {
+      date: `${get('year')}-${get('month')}-${get('day')}`,
+      minutes: Number(get('hour')) * 60 + Number(get('minute')),
+    };
+  } catch {
+    return null; // an unknown timezone should skip, not throw
+  }
+}
+
+const CRON_WINDOW_MIN = 15;
+
+/**
+ * Fires reminders whose local time has just come round. Runs on a cron trigger,
+ * so notifications arrive with the app closed.
+ */
+async function runReminders(env, now = new Date()) {
+  if (!env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY) return { sent: 0, skipped: 'no vapid keys' };
+
+  const subs = await env.DB.prepare('SELECT * FROM push_subscriptions').all();
+  let sent = 0;
+
+  for (const sub of subs.results ?? []) {
+    const local = localSlot(sub.timezone, now);
+    if (!local) continue;
+
+    const wanted = [sub.morning_time, ...String(sub.check_times).split(',')]
+      .map((t) => t.trim())
+      .filter((t) => /^\d{2}:\d{2}$/.test(t));
+
+    for (const time of wanted) {
+      const [h, m] = time.split(':').map(Number);
+      const target = h * 60 + m;
+      const delta = local.minutes - target;
+      if (delta < 0 || delta >= CRON_WINDOW_MIN) continue;
+
+      const slot = `${local.date} ${time}`;
+      if (sub.last_fired === slot) continue; // already sent this one today
+
+      try {
+        const status = await sendPush(env, sub.endpoint);
+        if (status === 404 || status === 410) {
+          // The browser has thrown the subscription away; stop retrying it.
+          await env.DB.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(sub.id).run();
+          break;
+        }
+        if (status >= 200 && status < 300) sent += 1;
+      } catch {
+        /* transient — the next window will try again */
+      }
+
+      await env.DB.prepare('UPDATE push_subscriptions SET last_fired = ? WHERE id = ?')
+        .bind(slot, sub.id)
+        .run();
+      break; // at most one nudge per run
+    }
+  }
+
+  return { sent };
+}
+
 /* ---------------------------------------------------------------- the AI  */
 
 // Overridable so the endpoint can be tested against a stub without a real key.
@@ -669,10 +992,33 @@ async function handleApi(request, env, url) {
   if (!session) return bad('Not signed in', 401);
 
   if (path === '/api/auth/me' && method === 'GET') {
-    return json({ username: session.username, aiAvailable: !!env.GEMINI_API_KEY });
+    return json({
+      username: session.username,
+      aiAvailable: !!env.GEMINI_API_KEY,
+      pushAvailable: !!(env.VAPID_PRIVATE_KEY && env.VAPID_PUBLIC_KEY),
+      vapidPublicKey: env.VAPID_PUBLIC_KEY || null,
+    });
   }
 
   if (path === '/api/ai' && method === 'POST') return handleAi(request, env, session);
+
+  if (path === '/api/keys' && method === 'GET') return handleGetKeys(env, session);
+  if (path === '/api/keys' && method === 'POST') return handlePublishKeys(request, env, session);
+  if (path === '/api/shares' && method === 'GET') return handleListShares(env, session);
+
+  const shareMatch = path.match(/^\/api\/shares\/([a-f0-9-]{36})$/);
+  if (shareMatch) {
+    if (method === 'PUT') return handlePutShare(request, env, session, shareMatch[1]);
+    if (method === 'DELETE') return handleUnshare(env, session, shareMatch[1]);
+  }
+
+  if (path === '/api/push/subscribe' && method === 'POST') {
+    return handleSubscribe(request, env, session);
+  }
+  if (path === '/api/push/unsubscribe' && method === 'POST') {
+    return handleUnsubscribe(request, env, session);
+  }
+  if (path === '/api/push/test' && method === 'POST') return handleTestPush(request, env, session);
 
   if (path === '/api/entries' && method === 'GET') return listEntries(request, env, session);
   if (path === '/api/entries' && method === 'POST') return createEntry(request, env, session);
@@ -748,10 +1094,18 @@ export default {
     }
   },
 
-  /** Nightly tidy-up of expired sessions. */
+  /** Fires due reminders, and tidies up expired sessions along the way. */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(Date.now()).run(),
+      (async () => {
+        try {
+          const result = await runReminders(env);
+          if (result.sent) console.log('reminders sent', result.sent);
+        } catch (err) {
+          console.error('reminders', err);
+        }
+        await env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(Date.now()).run();
+      })(),
     );
   },
 };

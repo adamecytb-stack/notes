@@ -106,6 +106,116 @@ export async function decryptEntry(vaultKey, entryId, ivB64, ciphertextB64) {
   return JSON.parse(td.decode(plain));
 }
 
+/* -------------------------------------------------------------- sharing  */
+
+/**
+ * Sharing uses a static ECDH P-256 keypair per person.
+ *
+ * ECDH(mine, theirs) and ECDH(theirs, mine) produce the same secret, so a
+ * dream shared between the two of them can be unwrapped by either — and by
+ * nobody else, because the server only ever sees public halves and wrapped
+ * bytes. P-256 rather than X25519 purely because Safari has supported it for
+ * years.
+ */
+export async function generateShareKeys() {
+  return crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, [
+    'deriveKey',
+    'deriveBits',
+  ]);
+}
+
+export async function exportPublicKey(key) {
+  return toB64(await crypto.subtle.exportKey('raw', key));
+}
+
+export async function importPublicKey(b64) {
+  return crypto.subtle.importKey('raw', fromB64(b64), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+}
+
+/** Wraps the private half with the vault key so it can be stored server-side. */
+export async function wrapPrivateKey(vaultKey, privateKey) {
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const wrapped = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode('dj:sharekey:v1') },
+    vaultKey,
+    pkcs8,
+  );
+  return { wrapped: toB64(wrapped), iv: toB64(iv) };
+}
+
+export async function unwrapPrivateKey(vaultKey, wrappedB64, ivB64) {
+  const pkcs8 = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromB64(ivB64), additionalData: te.encode('dj:sharekey:v1') },
+    vaultKey,
+    fromB64(wrappedB64),
+  );
+  return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDH', namedCurve: 'P-256' }, true, [
+    'deriveKey',
+    'deriveBits',
+  ]);
+}
+
+/** The AES key both sides can derive, and only they can. */
+async function sharedSecret(myPrivateKey, theirPublicKey) {
+  return crypto.subtle.deriveKey(
+    { name: 'ECDH', public: theirPublicKey },
+    myPrivateKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
+/**
+ * Encrypts a dream for the other person: a throwaway content key protects the
+ * payload, and only that small key is wrapped to the shared secret.
+ */
+export async function sealShare(myPrivateKey, theirPublicKey, entryId, payload) {
+  const contentKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
+    'encrypt',
+    'decrypt',
+  ]);
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode(entryId) },
+    contentKey,
+    te.encode(JSON.stringify(payload)),
+  );
+
+  const secret = await sharedSecret(myPrivateKey, theirPublicKey);
+  const wrapIv = crypto.getRandomValues(new Uint8Array(12));
+  const wrappedKey = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: wrapIv, additionalData: te.encode(entryId) },
+    secret,
+    await crypto.subtle.exportKey('raw', contentKey),
+  );
+
+  return {
+    iv: toB64(iv),
+    ciphertext: toB64(ciphertext),
+    wrappedKey: toB64(wrappedKey),
+    wrapIv: toB64(wrapIv),
+  };
+}
+
+export async function openShare(myPrivateKey, theirPublicKey, entryId, share) {
+  const secret = await sharedSecret(myPrivateKey, theirPublicKey);
+  const rawKey = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromB64(share.wrap_iv), additionalData: te.encode(entryId) },
+    secret,
+    fromB64(share.wrapped_key),
+  );
+  const contentKey = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromB64(share.iv), additionalData: te.encode(entryId) },
+    contentKey,
+    fromB64(share.ciphertext),
+  );
+  return JSON.parse(td.decode(plain));
+}
+
 /* --------------------------------------------------- key persistence (IDB) */
 
 import { idbGet, idbPut, idbDel } from './idb.js';

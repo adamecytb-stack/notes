@@ -656,6 +656,41 @@ body::after {
   text-transform: uppercase;
 }
 
+/* tabs — mine / theirs */
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 var(--pad) 0.5rem;
+  padding: 0.25rem;
+  background: var(--ink-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+
+.tabs button {
+  flex: 1;
+  min-height: 2.4rem;
+  border-radius: 9px;
+  font-variation-settings: 'opsz' 12, 'wght' 480, 'SOFT' 0, 'WONK' 0;
+  font-size: 0.875rem;
+  color: var(--vellum-dim);
+  transition: background 0.22s var(--ease), color 0.22s var(--ease);
+}
+
+.tabs button[aria-pressed='true'] {
+  background: var(--ink-high);
+  color: var(--vellum);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.sharerow {
+  margin-top: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--moon) 28%, transparent);
+  border-radius: 14px;
+  background: var(--ink-raise);
+}
+
 /* ============================================================== REFLECT  */
 
 .reflect {

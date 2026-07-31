@@ -15,7 +15,13 @@
     "stub:gemini": "node test/gemini-stub.mjs",
     "shots": "node test/screenshots.mjs",
     "icons": "python3 scripts/make-icons.py",
-    "test:lucid": "node test/lucid.test.mjs"
+    "test:lucid": "node test/lucid.test.mjs",
+    "test:sharing": "node test/sharing.test.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:remote": "node scripts/migrate.mjs --remote",
+    "test:push": "node test/push.test.mjs",
+    "stub:push": "node test/push-stub.mjs",
+    "vapid": "node scripts/vapid-keys.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

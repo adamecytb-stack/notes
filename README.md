@@ -81,7 +81,7 @@ Other things that follow from taking this seriously:
 
 ## Deploying from a phone
 
-No computer needed. GitHub does the work; you just fill in three secrets in a
+No computer needed. GitHub does the work; you just fill in a few secrets in a
 browser. Use a mobile *browser* rather than the GitHub app — the app can't
 reach repository settings.
 
@@ -94,7 +94,7 @@ Workers** template. Copy the token when it appears; it is shown once.
 Pages**. The account ID is in the right-hand column (or in the URL after
 `dash.cloudflare.com/`).
 
-**3. Add three secrets to this repo** — go to **Settings → Secrets and variables
+**3. Add the secrets to this repo** — go to **Settings → Secrets and variables
 → Actions → New repository secret**, and add:
 
 | Name | Value |
@@ -103,13 +103,15 @@ Pages**. The account ID is in the right-hand column (or in the URL after
 | `CLOUDFLARE_ACCOUNT_ID` | the id from step 2 |
 | `SETUP_CODE` | invent one — you and your friend each use it once |
 | `GEMINI_API_KEY` | *optional* — from [aistudio.google.com/apikey](https://aistudio.google.com/apikey), enables the dream companion |
+| `VAPID_PUBLIC_KEY` | *optional* — from `npm run vapid`, enables reminders |
+| `VAPID_PRIVATE_KEY` | *optional* — the other half of the same pair |
 
 **4. Run it** — **Actions → Deploy Nocturne → Run workflow**.
 
 It creates the database, builds the tables, deploys, and prints your URL in the
 run summary. Every later push deploys again automatically.
 
-There is no fourth secret to manage: `SALT_PEPPER` is generated on the first
+The first three are required; the rest switch on optional features. `SALT_PEPPER` is generated on the first
 run and then left alone forever.
 
 ### Then, on the iPhone
@@ -148,7 +150,12 @@ Copy the `database_id` it prints into `wrangler.toml`, replacing
 
 ```bash
 npm run db:init
+npm run migrate:remote
 ```
+
+`db:init` creates tables; `migrate:remote` adds columns to tables that already
+exist, since `CREATE TABLE IF NOT EXISTS` does nothing to those. Both are safe
+to re-run, and the deploy workflow runs them for you.
 
 **3. Set the two secrets**
 
@@ -243,25 +250,75 @@ each, so a stuck client cannot burn the shared free quota.
 
 ---
 
-## Notifications — yes, with one condition
+## Sharing lucid dreams
 
-**Yes, this can send notifications by itself**, including on iPhone. The
-condition is that the app must be added to the Home Screen first. iOS does not
-allow web push for a site open in a Safari tab — only for installed web apps
-(iOS 16.4 and later). Once installed, it behaves like any other app's
-notification.
+Lucid dreams go to the other person automatically; ordinary ones stay private.
+There is a per-dream toggle either way, and a **Together** switch in Settings to
+turn the automatic part off.
 
-Scheduling comes from **Cloudflare Cron Triggers**: the Worker wakes on a
-schedule and pushes without your phone doing anything, so it works with the app
-closed.
+**This does not weaken the encryption.** Each of you gets an ECDH keypair the
+first time you unlock. A shared dream is encrypted under a fresh random key,
+and only that small key is wrapped to the secret the two of you can both
+derive. The server stores the ciphertext and the wrapped key and can open
+neither — a third keypair cannot open it either, which the test suite checks by
+trying.
 
-What is in place right now: the toggle in Settings, the permission request, the
-reminder time, and the service worker code that receives a push and shows it.
+Your private key is stored wrapped with your vault key, so it follows you to a
+new phone; the server holds it but cannot use it. Republishing a different
+public key is refused, because it would strand every dream already shared.
 
-What is not built yet: the server half — VAPID keys, storing push
-subscriptions, and the cron job that signs and sends the message. That is a
-contained next step, and the Settings toggle says so plainly rather than
-pretending to work.
+There is no setup. Both of you just need to have opened the app once.
+
+---
+
+## Reality-check reminders
+
+The technique that actually produces lucid dreams is doing reality checks
+while awake, often enough that you eventually do one inside a dream. So the
+app sends a few a day — *"Read some text, look away, read it again — does it
+hold still?"* — plus one morning nudge to write down what you remember. Times
+are yours to set, and each check can be turned off individually.
+
+**Pushes carry no payload.** The wording lives in the service worker, so the
+push service (Apple, Google, Mozilla) is told only *that* to wake your phone,
+never anything about you. That also means nothing needs encrypting on the way.
+
+Reminders fire from a Cloudflare cron trigger every 15 minutes, matching
+against your local wall-clock time by IANA timezone — so they hold across
+daylight saving without you touching anything.
+
+### Switching them on
+
+Generate the keypair that identifies your server to push services:
+
+```bash
+npm run vapid
+```
+
+Set both printed values as secrets — `wrangler secret put` from a computer, or
+as GitHub repository secrets (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) and
+re-run the deploy from a phone. Optionally `VAPID_SUBJECT`, a `mailto:` some
+push services like to have.
+
+> **Keep them.** Regenerating invalidates every existing subscription and each
+> phone has to turn reminders on again.
+
+Then in Settings, **Reality check reminders** → allow notifications. **Send one
+now** confirms it actually arrives before you rely on it.
+
+On iPhone the app must be on your Home Screen first — see below.
+
+---
+
+## Notifications on iPhone — one condition
+
+**Yes, this sends notifications by itself.** The condition is that the app must
+be added to the Home Screen first. iOS does not allow web push for a site open
+in a Safari tab — only for installed web apps (iOS 16.4 and later). Once
+installed it behaves like any other app's notifications, and they arrive with
+the app closed.
+
+Settings tells you this in place if you try to switch reminders on too early.
 
 ---
 
@@ -305,8 +362,8 @@ Everything above the companion is encrypted before it leaves the phone — the
 lucidity answers, the dream signs, the sleep conditions, all of it. Only the
 timestamp stays in the clear.
 
-Not built yet: shared lucid dreams between the two accounts, and scheduled
-reality-check notifications.
+That is the whole list. Not built, on purpose: tags, search, mood tracking,
+public sharing, or anything that would make this feel like a social network.
 
 ### The design
 
@@ -333,6 +390,7 @@ already dissolving, and the screen is the only light in the room.
 ```bash
 npm run dev          # http://localhost:8787
 npm run db:init:local
+npm run migrate
 npm run seed         # a journal full of sample dreams: ada / correct-horse-battery
 ```
 
@@ -346,10 +404,30 @@ SALT_PEPPER=anything-for-local
 Tests need the dev server running in another terminal:
 
 ```bash
-npm run test:api     # crypto, auth, seat limits, journal separation
-npm run test:flows   # the UI: autosave, passphrase change, offline capture
-npm run shots        # screenshots on an iPhone viewport → ./screenshots
+npm run test:api      # crypto, auth, seat limits, journal separation
+npm run test:sharing  # ECDH sharing, and that the server cannot read a share
+npm run test:flows    # the UI: autosave, passphrase change, offline capture
+npm run test:lucid    # the guided flow, the tips, the patterns screen
+npm run shots         # screenshots on an iPhone viewport → ./screenshots
 ```
+
+Two suites need a stub standing in for an external service. Add to `.dev.vars`:
+
+```
+GEMINI_API_KEY=stub-key
+GEMINI_HOST=http://127.0.0.1:8788
+VAPID_PUBLIC_KEY=...        # from `npm run vapid`
+VAPID_PRIVATE_KEY=...
+PUSH_ALLOW_INSECURE=1       # lets the local stub be plain http
+```
+
+```bash
+npm run stub:gemini && npm run test:ai     # relay, failure branches, budget
+npm run stub:push   && npm run test:push   # VAPID signing, scheduling, cleanup
+```
+
+The push stub verifies the VAPID JWT signature for real, so a mis-signed token
+fails locally exactly as it would against Apple or Google.
 
 The companion tests need a stub standing in for Google, so add these to
 `.dev.vars` and start it alongside the dev server:

@@ -12,7 +12,13 @@ CREATE TABLE IF NOT EXISTS users (
   -- PBKDF2(auth_proof) — a hash of a hash. A stolen DB does not yield a login.
   verifier      TEXT NOT NULL,
   verifier_salt TEXT NOT NULL,
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  -- ECDH P-256 keypair for sharing. The public half is public by definition;
+  -- the private half is stored wrapped with the owner's vault key, so it can
+  -- follow them to a new phone without the server ever holding it usably.
+  public_key      TEXT,
+  wrapped_private TEXT,
+  wrapped_iv      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -37,6 +43,42 @@ CREATE TABLE IF NOT EXISTS entries (
 );
 CREATE INDEX IF NOT EXISTS idx_entries_user_dreamed ON entries(user_id, dreamed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_entries_user_updated ON entries(user_id, updated_at);
+
+-- A dream one person has shared with the other.
+--
+-- The owner's own copy stays in `entries`, encrypted to their vault key and
+-- untouched. A share is a second, separately encrypted copy: the payload under
+-- a fresh random content key, and that content key wrapped to the ECDH secret
+-- the two of them share. The server holds both halves and can open neither.
+CREATE TABLE IF NOT EXISTS shares (
+  entry_id     TEXT PRIMARY KEY,
+  owner_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  iv           TEXT NOT NULL,
+  ciphertext   TEXT NOT NULL,
+  wrapped_key  TEXT NOT NULL,   -- content key, wrapped to ECDH(owner, recipient)
+  wrap_iv      TEXT NOT NULL,
+  dreamed_at   INTEGER NOT NULL,
+  created_at   INTEGER NOT NULL,
+  updated_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_shares_recipient ON shares(recipient_id, dreamed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_id);
+
+-- Web push registrations. Reminders fire from a cron trigger, so the phone does
+-- not need the app open. Payloads are never sent — the notification text lives
+-- in the service worker — which keeps this table free of anything personal.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint     TEXT NOT NULL UNIQUE,
+  timezone     TEXT NOT NULL DEFAULT 'UTC',
+  morning_time TEXT NOT NULL DEFAULT '',   -- 'HH:MM' local, '' = off
+  check_times  TEXT NOT NULL DEFAULT '',   -- comma-separated 'HH:MM' local
+  last_fired   TEXT NOT NULL DEFAULT '',   -- 'YYYY-MM-DD HH:MM' of the last slot
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
 
 -- Caps how much the AI can be called. The free Gemini tier allows roughly 15
 -- requests a minute and 1,500 a day across the whole key, so both people share

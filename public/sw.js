@@ -6,7 +6,7 @@
  * IndexedDB and are reconciled by store.js.
  */
 
-const CACHE = 'nocturne-v3';
+const CACHE = 'nocturne-v4';
 
 /**
  * Note "/" rather than "/index.html": Cloudflare's asset server 307-redirects
@@ -21,7 +21,9 @@ const SHELL = [
   '/js/crypto.js',
   '/js/dream.js',
   '/js/idb.js',
+  '/js/reminders.js',
   '/js/settings.js',
+  '/js/sharing.js',
   '/js/store.js',
   '/js/ui.js',
   '/fonts/fraunces-latin.woff2',
@@ -120,23 +122,41 @@ self.addEventListener('fetch', (event) => {
 });
 
 /**
- * Push handling is here and ready; what is not built yet is the server side
- * that signs and sends the message. See README → Notifications.
+ * Reminders arrive as a bare push with no payload — the wording lives here
+ * rather than crossing the wire, so the push service learns nothing.
+ *
+ * Before roughly 10am it reads as "write down what you remember"; the rest of
+ * the day it is a reality check, which is the habit that actually produces
+ * lucid dreams. The prompts vary because a notification you stop reading is a
+ * notification that stops working.
  */
+const CHECKS = [
+  'Are you dreaming right now? Look at your hands and count the fingers.',
+  'Reality check. Read some text, look away, read it again — does it hold still?',
+  'Is this a dream? Pinch your nose closed and try to breathe in.',
+  'Check: how did you get here? Can you remember the last hour clearly?',
+  'Look at a clock, look away, look back. Reality check.',
+];
+
+const MORNINGS = [
+  'Anything you remember? Stay still and let it come back first.',
+  'What did you dream? Write it down before you move.',
+  'Even a fragment counts. What is left of last night?',
+];
+
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
 self.addEventListener('push', (event) => {
-  let data = { title: 'Nocturne', body: 'Anything you remember?' };
-  try {
-    if (event.data) data = { ...data, ...event.data.json() };
-  } catch {
-    /* keep the default copy */
-  }
+  const hour = new Date().getHours();
+  const morning = hour < 10;
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
+    self.registration.showNotification(morning ? 'Nocturne' : 'Reality check', {
+      body: morning ? pick(MORNINGS) : pick(CHECKS),
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: 'nocturne-nudge',
-      data: { url: '/?capture=1' },
+      renotify: true,
+      data: { url: morning ? '/?capture=1' : '/' },
     }),
   );
 });

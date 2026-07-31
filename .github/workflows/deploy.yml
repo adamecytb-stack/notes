@@ -108,6 +108,12 @@ jobs:
         # to run on every deploy and never touches existing rows.
         run: npx wrangler d1 execute dreams --remote --file=./schema.sql
 
+      - name: Apply migrations
+        # CREATE TABLE IF NOT EXISTS does nothing to a table that already
+        # exists, so columns added to `users` after the first deploy have to
+        # come through here. Safe to re-run; see scripts/migrate.mjs.
+        run: node scripts/migrate.mjs --remote
+
       - name: Deploy
         id: deploy
         run: |
@@ -120,6 +126,25 @@ jobs:
         env:
           SETUP_CODE: ${{ secrets.SETUP_CODE }}
         run: printf '%s' "$SETUP_CODE" | npx wrangler secret put SETUP_CODE
+
+      - name: Set the reminder keys, if there are any
+        # Both or neither — reminders need the pair. They must stay stable:
+        # regenerating invalidates every phone's existing subscription.
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          if [ -n "$VAPID_PUBLIC_KEY" ] && [ -n "$VAPID_PRIVATE_KEY" ]; then
+            printf '%s' "$VAPID_PUBLIC_KEY"  | npx wrangler secret put VAPID_PUBLIC_KEY
+            printf '%s' "$VAPID_PRIVATE_KEY" | npx wrangler secret put VAPID_PRIVATE_KEY
+            if [ -n "$VAPID_SUBJECT" ]; then
+              printf '%s' "$VAPID_SUBJECT" | npx wrangler secret put VAPID_SUBJECT
+            fi
+            echo "Reminders enabled."
+          else
+            echo "No VAPID keys — skipping reminders."
+          fi
 
       - name: Set the Gemini key, if there is one
         # Optional: without it the app works exactly as before, minus the

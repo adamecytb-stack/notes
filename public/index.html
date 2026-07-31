@@ -195,6 +195,13 @@
             <span id="offline-text">Offline — your dreams are saved here and will sync later.</span>
           </div>
 
+          <div class="tabs" id="tabs">
+            <button type="button" data-tab="mine" aria-pressed="true">Mine</button>
+            <button type="button" data-tab="theirs" aria-pressed="false" id="tab-theirs">
+              Theirs
+            </button>
+          </div>
+
           <div class="timeline" id="timeline"></div>
         </div>
 
@@ -358,25 +365,60 @@
               </div>
             </div>
 
+            <!-- Sharing -->
+            <div class="group">
+              <p class="t-meta group__label">Together</p>
+              <div class="group__body">
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Share lucid dreams automatically</p>
+                    <p class="row__hint" id="share-hint">
+                      Only lucid ones. Ordinary dreams stay private to you.
+                    </p>
+                  </div>
+                  <button class="toggle" type="button" id="set-share" aria-pressed="true" aria-label="Share lucid dreams automatically"></button>
+                </div>
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Shared with you</p>
+                  </div>
+                  <span class="row__value" id="share-count">—</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Reminders -->
             <div class="group">
               <p class="t-meta group__label">Reminders</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Morning nudge</p>
+                    <p class="row__title">Reality check reminders</p>
                     <p class="row__hint" id="notif-hint">
-                      A quiet reminder to write down what you remember.
+                      The habit that gets performed inside a dream. Several a day.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-notify" aria-pressed="false" aria-label="Morning nudge"></button>
+                  <button class="toggle" type="button" id="set-notify" aria-pressed="false" aria-label="Reality check reminders"></button>
                 </div>
                 <div class="row" id="notif-time-row">
                   <div class="row__main">
-                    <p class="row__title">Time</p>
+                    <p class="row__title">Morning nudge</p>
+                    <p class="row__hint">To write down what you remember.</p>
                   </div>
-                  <input class="row__value" type="time" id="notif-time" value="07:15" aria-label="Reminder time" />
+                  <input class="row__value" type="time" id="notif-time" value="07:15" aria-label="Morning nudge time" />
                 </div>
+                <div class="row row--stack" id="notif-checks-row">
+                  <p class="row__title">Reality checks</p>
+                  <div class="chips" id="notif-checks"></div>
+                  <p class="row__hint">Tap to turn each one off.</p>
+                </div>
+                <button class="row" type="button" id="notif-test">
+                  <span class="row__main">
+                    <span class="row__title">Send one now</span>
+                    <span class="row__hint">Check it actually arrives on this phone.</span>
+                  </span>
+                  <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
+                </button>
               </div>
             </div>
 
@@ -599,6 +641,17 @@
                 </section>
               </div>
             </details>
+
+            <div class="row row--stack sharerow hidden" id="share-row">
+              <div class="switchrow">
+                <span class="q__ask q__ask--inline" id="share-label">Share this with them</span>
+                <button class="toggle" type="button" id="q-share" aria-pressed="false"
+                        aria-label="Share this dream"></button>
+              </div>
+              <p class="q__note" id="share-note">
+                They will be able to read this dream. Nobody else can, including the server.
+              </p>
+            </div>
 
             <div class="tip" id="tip">
               <p class="t-meta tip__label">What to try</p>

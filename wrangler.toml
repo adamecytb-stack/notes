@@ -15,6 +15,11 @@ binding = "DB"
 database_name = "dreams"
 database_id = "PASTE_YOUR_DATABASE_ID_HERE"
 
+# Reminders are matched to local wall-clock time in 15-minute windows, so the
+# schedule has to tick at least that often.
+[triggers]
+crons = ["*/15 * * * *"]
+
 [observability]
 enabled = true
 

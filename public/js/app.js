@@ -57,6 +57,26 @@ import {
   SUBSTANCES,
 } from './dream.js';
 import {
+  sharing,
+  initSharing,
+  canShare,
+  isShared,
+  share as shareEntry,
+  unshare as unshareEntry,
+  refreshInbox,
+  forgetSharing,
+} from './sharing.js';
+import {
+  push,
+  DEFAULT_CHECKS,
+  blockedReason,
+  refreshPushState,
+  enableReminders,
+  disableReminders,
+  updateSchedule,
+  sendTest,
+} from './reminders.js';
+import {
   hasConsented,
   grantConsent,
   revokeConsent,
@@ -180,21 +200,57 @@ function enterJournal() {
   // key configured), so ask rather than assume.
   api
     .me()
-    .then((me) => {
+    .then(async (me) => {
       aiAvailable = !!me.aiAvailable;
+      push.available = !!me.pushAvailable;
+      push.publicKey = me.vapidPublicKey;
+
+      // Sharing needs the vault key, so it can only start once unlocked.
+      if (state.vaultKey && (await initSharing(state.vaultKey))) {
+        await refreshInbox().catch(() => {});
+        renderJournal();
+      }
     })
     .catch(() => {});
 }
 
 /* =============================================================== JOURNAL */
 
+/** 'mine' | 'theirs' */
+let tab = 'mine';
+
+$('#tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  tab = btn.dataset.tab;
+  for (const b of $('#tabs').children) {
+    b.setAttribute('aria-pressed', String(b === btn));
+  }
+  renderJournal();
+  if (tab === 'theirs') refreshInbox().then(renderJournal).catch(() => {});
+});
+
 function renderJournal() {
   $('#greeting').textContent = greeting();
 
-  const entries = sortedEntries();
+  // The second tab only makes sense once there is somebody on the other end.
+  const hasPeer = !!sharing.peerName;
+  $('#tabs').classList.toggle('hidden', !hasPeer);
+  if (hasPeer) $('#tab-theirs').textContent = sharing.peerName;
+  if (!hasPeer && tab !== 'mine') tab = 'mine';
+
+  const entries = tab === 'theirs' ? sharing.inbox : sortedEntries();
   const count = entries.length;
   $('#entry-count').textContent =
-    count === 0 ? '' : count === 1 ? '1 dream kept' : `${count} dreams kept`;
+    tab === 'theirs'
+      ? count === 0
+        ? ''
+        : `${count} shared with you`
+      : count === 0
+        ? ''
+        : count === 1
+          ? '1 dream kept'
+          : `${count} dreams kept`;
 
   const offline = state.lastError === 'offline' || !navigator.onLine;
   $('#offline-banner').classList.toggle('hidden', !offline);
@@ -203,7 +259,7 @@ function renderJournal() {
   timeline.replaceChildren();
 
   if (!count) {
-    timeline.appendChild(renderEmpty());
+    timeline.appendChild(tab === 'theirs' ? renderEmptyShared() : renderEmpty());
     return;
   }
 
@@ -249,8 +305,55 @@ function renderEntry(entry, index) {
   if (excerpt) body.appendChild(el('p', 'entry__excerpt', excerpt));
 
   node.append(when, body);
-  node.addEventListener('click', () => openCompose(entry));
+  // Their dreams are read-only — there is nothing of yours to edit.
+  node.addEventListener('click', () =>
+    entry.from ? showSharedDream(entry) : openCompose(entry),
+  );
   return node;
+}
+
+/** Read-only view of a dream the other person shared. */
+function showSharedDream(entry) {
+  const slot = el('div', 'reading');
+  if (entry.undecryptable) {
+    slot.appendChild(el('p', 'error', 'This could not be decrypted.'));
+  } else {
+    if (entry.body) slot.appendChild(el('p', 'reading__p', entry.body));
+    const facts = [];
+    if (entry.lucid) {
+      if (entry.trigger) facts.push(`Became aware because: ${entry.trigger}`);
+      if (entry.actions) facts.push(`Once aware: ${entry.actions}`);
+      if (entry.duration) facts.push(`Lasted: ${entry.duration}`);
+      if (entry.ending) facts.push(`Ended: ${entry.ending}`);
+    }
+    if (entry.signs?.length) facts.push(`Dream signs: ${entry.signs.join('; ')}`);
+    for (const f of facts) slot.appendChild(el('p', 'note', f));
+  }
+
+  openModal({
+    title: entry.title || (entry.lucid ? 'A lucid dream' : 'A dream'),
+    body: `${entry.from} · ${fullStamp(entry.dreamedAt)}`,
+    slot,
+    actions: [{ label: 'Close', kind: 'btn--ghost', onClick: closeModal }],
+  });
+}
+
+function renderEmptyShared() {
+  const wrap = el('div', 'empty');
+  const mark = icon('i-spark', 56);
+  mark.classList.add('empty__mark');
+  wrap.append(
+    mark,
+    el('h2', 'empty__title', `Nothing from ${sharing.peerName} yet`),
+    el(
+      'p',
+      'empty__body',
+      canShare()
+        ? 'Lucid dreams either of you record get shared here automatically. Ordinary ones stay private.'
+        : 'They need to open the app once so their keys exist, then sharing works both ways.',
+    ),
+  );
+  return wrap;
 }
 
 function renderEmpty() {
@@ -569,15 +672,30 @@ scale($('#q-vividness'), {
   },
 });
 
-$('#q-lucid').addEventListener('click', (e) => {
+$('#q-lucid').addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-lucid]');
   if (!btn) return;
+  const wasLucid = draft.lucid;
   draft.lucid = btn.dataset.lucid === 'yes';
   for (const b of $('#q-lucid').children) {
     b.setAttribute('aria-pressed', String(b === btn));
   }
   showBranch();
   mark();
+
+  // Answering "yes" for the first time turns sharing on, since that is the
+  // whole reason the two of them are doing this together.
+  if (wasLucid !== true && defaultShareFor(draft.lucid) && !$('#q-share').matches('[aria-pressed="true"]')) {
+    $('#q-share').setAttribute('aria-pressed', 'true');
+    const id = composing?.id || (await commit({ silent: true }));
+    if (id) {
+      try {
+        await shareEntry(state.entries.get(id));
+      } catch {
+        $('#q-share').setAttribute('aria-pressed', 'false');
+      }
+    }
+  }
 });
 
 // Free-text fields all follow the same shape.
@@ -617,7 +735,40 @@ function showBranch() {
   $('#branch-lucid').classList.toggle('hidden', draft.lucid !== true);
   $('#branch-ordinary').classList.toggle('hidden', draft.lucid !== false);
   $('#branch-tail').classList.toggle('hidden', !answered);
+  $('#share-row').classList.toggle('hidden', !answered || !canShare());
+  if (canShare()) {
+    $('#share-label').textContent = `Share this with ${sharing.peerName}`;
+  }
 }
+
+/** Lucid dreams share by default; that preference is what the toggle starts at. */
+function defaultShareFor(lucid) {
+  return canShare() && lucid === true && prefs.shareLucid !== false;
+}
+
+$('#q-share').addEventListener('click', async (e) => {
+  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+  e.currentTarget.setAttribute('aria-pressed', String(on));
+  // Sharing needs a saved entry to point at, so make sure it exists first.
+  const id = composing?.id || (await commit({ silent: true }));
+  if (!id) {
+    e.currentTarget.setAttribute('aria-pressed', 'false');
+    toast('Write something first');
+    return;
+  }
+  try {
+    if (on) {
+      await shareEntry(state.entries.get(id));
+      toast(`Shared with ${sharing.peerName}`);
+    } else {
+      await unshareEntry(id);
+      toast('No longer shared');
+    }
+  } catch (err) {
+    e.currentTarget.setAttribute('aria-pressed', String(!on));
+    toast(err.message || 'Could not change sharing');
+  }
+});
 
 function refreshTip() {
   if ($('#branch-tail').classList.contains('hidden')) return;
@@ -655,6 +806,7 @@ function fillReflect(entry) {
   for (const b of $('#q-lucid').children) {
     b.setAttribute('aria-pressed', String(!isNew && draft.lucid === (b.dataset.lucid === 'yes')));
   }
+  $('#q-share').setAttribute('aria-pressed', String(!!entry && isShared(entry.id)));
   showBranch();
   refreshTip();
 }
@@ -824,11 +976,12 @@ function refreshSettings() {
   $('#text-size').value = String(prefs.textScale);
   $('#set-autolock').setAttribute('aria-pressed', String(prefs.autoLock));
   $('#set-privacy-screen').setAttribute('aria-pressed', String(prefs.privacyScreen));
-  $('#set-notify').setAttribute('aria-pressed', String(prefs.notify));
   $('#notif-time').value = prefs.notifyTime;
-  $('#notif-time-row').classList.toggle('hidden', !prefs.notify);
+  renderCheckTimes();
+  refreshPushState().then(updateNotifyHint);
   updateNotifyHint();
 
+  refreshSharing();
   refreshCompanion();
 
   $('#about-note').textContent = `Nocturne ${APP_VERSION} · Entries are encrypted with AES-GCM on this device. The server stores only ciphertext and cannot read them.`;
@@ -868,6 +1021,7 @@ $('#set-signout').addEventListener('click', async () => {
   });
   if (!ok) return;
   await signOut();
+  forgetSharing();
   history.replaceState({ view: 'lock' }, '');
   showView('lock', { push: false });
   setMode('signin');
@@ -1107,44 +1261,89 @@ const isStandalone = () =>
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 function updateNotifyHint() {
-  const hint = $('#notif-hint');
-  if (!('Notification' in window)) {
-    hint.textContent = 'This browser cannot show notifications.';
-    return;
+  const blocked = blockedReason();
+  $('#notif-hint').textContent =
+    blocked ||
+    (push.subscribed
+      ? 'On. Reminders arrive with the app closed.'
+      : 'The habit that gets performed inside a dream. Several a day.');
+  $('#set-notify').setAttribute('aria-pressed', String(push.subscribed));
+  for (const id of ['#notif-time-row', '#notif-checks-row', '#notif-test']) {
+    $(id).classList.toggle('hidden', !push.subscribed);
   }
-  if (isIOS() && !isStandalone()) {
-    hint.textContent =
-      'On iPhone, add Nocturne to your Home Screen first — iOS only allows notifications for installed apps.';
-    return;
+}
+
+/** The reality-check times, each tappable to turn off. */
+function renderCheckTimes() {
+  const node = $('#notif-checks');
+  node.replaceChildren();
+  const active = new Set(prefs.checkTimes || DEFAULT_CHECKS);
+  for (const time of DEFAULT_CHECKS) {
+    const chip = el('button', 'chip', time);
+    chip.type = 'button';
+    chip.setAttribute('aria-pressed', String(active.has(time)));
+    chip.addEventListener('click', async () => {
+      const on = chip.getAttribute('aria-pressed') !== 'true';
+      chip.setAttribute('aria-pressed', String(on));
+      const next = DEFAULT_CHECKS.filter((t) =>
+        t === time ? on : (prefs.checkTimes || DEFAULT_CHECKS).includes(t),
+      );
+      setPref('checkTimes', next);
+      await updateSchedule().catch(() => {});
+    });
+    node.appendChild(chip);
   }
-  if (Notification.permission === 'denied') {
-    hint.textContent = 'Blocked. Turn notifications back on in your phone settings.';
-    return;
-  }
-  hint.textContent = prefs.notify
-    ? 'Permission granted. Scheduled delivery switches on with the push server.'
-    : 'A quiet reminder to write down what you remember.';
 }
 
 $('#set-notify').addEventListener('click', async (e) => {
   const turningOn = e.currentTarget.getAttribute('aria-pressed') !== 'true';
-  if (!turningOn) {
-    setPref('notify', false);
-    refreshSettings();
-    return;
+  try {
+    if (turningOn) {
+      await enableReminders();
+      toast('Reminders on');
+    } else {
+      await disableReminders();
+      toast('Reminders off');
+    }
+  } catch (err) {
+    toast(err.message || 'Could not change reminders');
   }
-  if (isIOS() && !isStandalone()) {
-    toast('Add Nocturne to your Home Screen first');
-    updateNotifyHint();
-    return;
-  }
-  const permission = await Notification.requestPermission();
-  setPref('notify', permission === 'granted');
-  if (permission !== 'granted') toast('Notifications not allowed');
   refreshSettings();
 });
 
-$('#notif-time').addEventListener('change', (e) => setPref('notifyTime', e.target.value));
+$('#notif-time').addEventListener('change', async (e) => {
+  setPref('notifyTime', e.target.value);
+  await updateSchedule().catch(() => {});
+});
+
+$('#notif-test').addEventListener('click', async () => {
+  try {
+    await sendTest();
+    toast('Sent — it should arrive in a moment');
+  } catch (err) {
+    toast(err.message || 'Could not send');
+  }
+});
+
+/* ------------------------------------------------------------- sharing UI */
+
+function refreshSharing() {
+  $('#set-share').setAttribute('aria-pressed', String(prefs.shareLucid !== false));
+  const hint = $('#share-hint');
+  if (!sharing.peerName) {
+    hint.textContent = 'Nobody else has an account yet.';
+  } else if (!canShare()) {
+    hint.textContent = `${sharing.peerName} needs to open the app once before sharing can work.`;
+  } else {
+    hint.textContent = `Lucid dreams go to ${sharing.peerName} automatically. Ordinary ones stay private.`;
+  }
+  $('#share-count').textContent = sharing.inbox.length ? String(sharing.inbox.length) : '—';
+}
+
+$('#set-share').addEventListener('click', (e) => {
+  setPref('shareLucid', e.currentTarget.getAttribute('aria-pressed') !== 'true');
+  refreshSharing();
+});
 
 /* ---------------------------------------------------------- device guards */
 

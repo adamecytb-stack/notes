@@ -15,6 +15,10 @@ const DEFAULTS = {
   // Off until explicitly granted. Nothing reaches Gemini before this is true.
   aiConsent: false,
   aiAfterEntry: false,
+  // Reality-check times, local. Spread out so they stay surprising.
+  checkTimes: ['10:30', '13:00', '16:00', '19:30'],
+  // Lucid dreams are the ones worth comparing, so they share by default.
+  shareLucid: true,
 };
 
 export const prefs = load();

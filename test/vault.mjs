@@ -92,6 +92,79 @@ export function makeClient() {
   };
 }
 
+/* ---------------------------------------------------------------- sharing */
+
+/** Mirrors the sharing half of public/js/crypto.js. */
+export async function generateShareKeys() {
+  return crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, [
+    'deriveKey',
+    'deriveBits',
+  ]);
+}
+
+export const exportPublicKey = async (key) => toB64(await crypto.subtle.exportKey('raw', key));
+
+export const importPublicKey = (b64) =>
+  crypto.subtle.importKey('raw', fromB64(b64), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+
+export async function wrapPrivateKey(vaultKey, privateKey) {
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const wrapped = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode('dj:sharekey:v1') },
+    vaultKey,
+    pkcs8,
+  );
+  return { wrapped: toB64(wrapped), iv: toB64(iv) };
+}
+
+export async function unwrapPrivateKey(vaultKey, wrappedB64, ivB64) {
+  const pkcs8 = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromB64(ivB64), additionalData: te.encode('dj:sharekey:v1') },
+    vaultKey,
+    fromB64(wrappedB64),
+  );
+  return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDH', namedCurve: 'P-256' }, true, [
+    'deriveKey',
+    'deriveBits',
+  ]);
+}
+
+const sharedSecret = (mine, theirs) =>
+  crypto.subtle.deriveKey({ name: 'ECDH', public: theirs }, mine, { name: 'AES-GCM', length: 256 },
+    false, ['encrypt', 'decrypt']);
+
+export async function sealShare(myPrivateKey, theirPublicKey, entryId, payload) {
+  const contentKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
+    'encrypt', 'decrypt',
+  ]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode(entryId) },
+    contentKey, te.encode(JSON.stringify(payload)));
+
+  const secret = await sharedSecret(myPrivateKey, theirPublicKey);
+  const wrapIv = crypto.getRandomValues(new Uint8Array(12));
+  const wrappedKey = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: wrapIv, additionalData: te.encode(entryId) },
+    secret, await crypto.subtle.exportKey('raw', contentKey));
+
+  return { iv: toB64(iv), ciphertext: toB64(ciphertext),
+    wrappedKey: toB64(wrappedKey), wrapIv: toB64(wrapIv) };
+}
+
+export async function openShare(myPrivateKey, theirPublicKey, entryId, share) {
+  const secret = await sharedSecret(myPrivateKey, theirPublicKey);
+  const rawKey = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromB64(share.wrap_iv), additionalData: te.encode(entryId) },
+    secret, fromB64(share.wrapped_key));
+  const contentKey = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromB64(share.iv), additionalData: te.encode(entryId) },
+    contentKey, fromB64(share.ciphertext));
+  return JSON.parse(td.decode(plain));
+}
+
 /* --------------------------------------------------------------- reporting */
 
 let pass = 0;
