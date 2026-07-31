@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en" data-theme="nocturne">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <title>Nocturne</title>
+    <meta name="description" content="A private dream journal." />
+
+    <meta name="theme-color" content="#0c0a09" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- Home-screen behaviour on iOS: full bleed, no Safari chrome. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nocturne" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+
+    <link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+
+  <body>
+    <!-- icon sprite -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="i-moon" viewBox="0 0 24 24">
+          <path
+            d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a1 1 0 0 0-1.3-1.2 10.5 10.5 0 1 0 13.6 13.6 1 1 0 0 0-1.2-1.3Z"
+            fill="currentColor"
+          />
+          <circle cx="17.2" cy="5.4" r="1.5" fill="currentColor" opacity=".55" />
+        </symbol>
+        <symbol id="i-gear" viewBox="0 0 24 24">
+          <path
+            d="M12 15.4a3.4 3.4 0 1 1 0-6.8 3.4 3.4 0 0 1 0 6.8Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            fill="none"
+          />
+          <path
+            d="m19.4 13-.1-1 1.7-1.3-1.7-3-2 .7-1.7-1-.3-2.1h-3.5l-.3 2.1-1.7 1-2-.7-1.7 3L7.8 12l-.1 1-1.7 1.3 1.7 3 2-.7 1.7 1 .3 2.1h3.5l.3-2.1 1.7-1 2 .7 1.7-3L19.3 13Z"
+            stroke="currentColor"
+            stroke-width="1.6"
+            fill="none"
+            stroke-linejoin="round"
+          />
+        </symbol>
+        <symbol id="i-chev" viewBox="0 0 8 14">
+          <path
+            d="m1 1 6 6-6 6"
+            stroke="currentColor"
+            stroke-width="1.8"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </symbol>
+        <symbol id="i-back" viewBox="0 0 8 14">
+          <path
+            d="M7 1 1 7l6 6"
+            stroke="currentColor"
+            stroke-width="1.8"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </symbol>
+        <symbol id="i-quill" viewBox="0 0 24 24">
+          <path
+            d="M4 20s1.6-6.4 6-10.8C13.4 5.8 19 4 19 4s-1 6-4.4 9.4C10.2 17.8 4 20 4 20Z"
+            stroke="currentColor"
+            stroke-width="1.5"
+            fill="none"
+            stroke-linejoin="round"
+          />
+          <path d="M4 20 11 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="app">
+      <!-- ==================================================== LOCK ==== -->
+      <section class="screen lock" id="screen-lock" aria-label="Sign in">
+        <div class="lock__inner stagger">
+          <svg class="lock__mark" aria-hidden="true"><use href="#i-moon" /></svg>
+
+          <h1 class="lock__title">Nocturne</h1>
+          <p class="lock__sub" id="lock-sub">
+            Your dreams are encrypted on this phone before they ever leave it.
+          </p>
+
+          <form class="lock__form" id="lock-form" autocomplete="on">
+            <div class="field">
+              <label class="field__label" for="f-username">Name</label>
+              <input
+                class="input"
+                id="f-username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="f-passphrase">Passphrase</label>
+              <input
+                class="input"
+                id="f-passphrase"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+
+            <div class="field hidden" id="field-setup">
+              <label class="field__label" for="f-setup">Setup code</label>
+              <input
+                class="input"
+                id="f-setup"
+                type="password"
+                autocomplete="off"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
+              />
+              <p class="note">The code you set when you deployed the journal.</p>
+            </div>
+
+            <p class="error" id="lock-error" role="alert"></p>
+
+            <button class="btn btn--primary btn--block" type="submit" id="lock-submit">
+              <span id="lock-submit-label">Unlock</span>
+            </button>
+          </form>
+
+          <div class="switcher">
+            <button class="btn btn--quiet" type="button" id="lock-switch">
+              First time here? Create your account
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================= JOURNAL ==== -->
+      <section class="screen" id="screen-journal" aria-label="Journal">
+        <div class="scroll" id="journal-scroll">
+          <header class="masthead">
+            <div class="masthead__row">
+              <div>
+                <h1 class="masthead__greeting" id="greeting">Good night</h1>
+                <p class="masthead__count" id="entry-count"></p>
+              </div>
+              <button class="iconbtn" type="button" id="open-settings" aria-label="Settings">
+                <svg width="22" height="22" aria-hidden="true"><use href="#i-gear" /></svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="banner hidden" id="offline-banner">
+            <span class="banner__dot"></span>
+            <span id="offline-text">Offline — your dreams are saved here and will sync later.</span>
+          </div>
+
+          <div class="timeline" id="timeline"></div>
+        </div>
+
+        <div class="recordbar">
+          <button class="btn record" type="button" id="record">
+            <svg width="19" height="19" aria-hidden="true"><use href="#i-quill" /></svg>
+            Record a dream
+          </button>
+        </div>
+      </section>
+
+      <!-- ================================================ SETTINGS ==== -->
+      <section class="screen" id="screen-settings" aria-label="Settings">
+        <div class="subhead">
+          <button class="back" type="button" id="settings-back">
+            <svg width="8" height="14" aria-hidden="true"><use href="#i-back" /></svg>
+            Journal
+          </button>
+        </div>
+
+        <div class="scroll">
+          <div class="settings">
+            <h1 class="t-screen">Settings</h1>
+
+            <!-- Account -->
+            <div class="group">
+              <p class="t-meta group__label">Account</p>
+              <div class="group__body">
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Signed in as</p>
+                  </div>
+                  <span class="row__value" id="set-username">—</span>
+                </div>
+                <button class="row" type="button" id="set-passphrase">
+                  <span class="row__main">
+                    <span class="row__title">Change passphrase</span>
+                    <span class="row__hint">Re-encrypts every entry with the new one.</span>
+                  </span>
+                  <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
+                </button>
+                <button class="row" type="button" id="set-signout">
+                  <span class="row__main"><span class="row__title">Sign out</span></span>
+                  <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Appearance -->
+            <div class="group">
+              <p class="t-meta group__label">Appearance</p>
+              <div class="group__body">
+                <div class="row row--stack">
+                  <p class="row__title">Theme</p>
+                  <div class="segmented" role="group" aria-label="Theme" id="theme-seg">
+                    <button type="button" data-theme-value="nocturne" aria-pressed="true">Nocturne</button>
+                    <button type="button" data-theme-value="daybreak" aria-pressed="false">Daybreak</button>
+                    <button type="button" data-theme-value="auto" aria-pressed="false">Auto</button>
+                  </div>
+                </div>
+                <div class="row row--stack">
+                  <p class="row__title">Text size</p>
+                  <div class="sizer">
+                    <span class="sizer__a sizer__a--sm" aria-hidden="true">A</span>
+                    <input
+                      type="range"
+                      id="text-size"
+                      min="90"
+                      max="125"
+                      step="5"
+                      value="100"
+                      aria-label="Text size"
+                    />
+                    <span class="sizer__a sizer__a--lg" aria-hidden="true">A</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Privacy -->
+            <div class="group">
+              <p class="t-meta group__label">Privacy</p>
+              <div class="group__body">
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Lock when I close the app</p>
+                    <p class="row__hint">
+                      Ask for the passphrase every time. Safest, but slower at 3am.
+                    </p>
+                  </div>
+                  <button class="toggle" type="button" id="set-autolock" aria-pressed="false" aria-label="Lock when I close the app"></button>
+                </div>
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Hide dreams in the app switcher</p>
+                    <p class="row__hint">Blurs the screen when you leave the app.</p>
+                  </div>
+                  <button class="toggle" type="button" id="set-privacy-screen" aria-pressed="true" aria-label="Hide dreams in the app switcher"></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reminders -->
+            <div class="group">
+              <p class="t-meta group__label">Reminders</p>
+              <div class="group__body">
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Morning nudge</p>
+                    <p class="row__hint" id="notif-hint">
+                      A quiet reminder to write down what you remember.
+                    </p>
+                  </div>
+                  <button class="toggle" type="button" id="set-notify" aria-pressed="false" aria-label="Morning nudge"></button>
+                </div>
+                <div class="row" id="notif-time-row">
+                  <div class="row__main">
+                    <p class="row__title">Time</p>
+                  </div>
+                  <input class="row__value" type="time" id="notif-time" value="07:15" aria-label="Reminder time" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Your data -->
+            <div class="group">
+              <p class="t-meta group__label">Your data</p>
+              <div class="group__body">
+                <button class="row" type="button" id="set-export-text">
+                  <span class="row__main">
+                    <span class="row__title">Export as text</span>
+                    <span class="row__hint">Readable copy of every dream.</span>
+                  </span>
+                  <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
+                </button>
+                <button class="row" type="button" id="set-export-json">
+                  <span class="row__main">
+                    <span class="row__title">Export as JSON</span>
+                    <span class="row__hint">For backups and moving elsewhere.</span>
+                  </span>
+                  <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
+                </button>
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Stored on this device</p>
+                  </div>
+                  <span class="row__value" id="set-storage">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="group">
+              <div class="group__body">
+                <button class="row row--danger" type="button" id="set-delete">
+                  <span class="row__main">
+                    <span class="row__title">Delete my journal</span>
+                    <span class="row__hint">Erases every entry from the server. Permanent.</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div class="group">
+              <p class="note" id="about-note"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- =================================================== COMPOSE ==== -->
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Write a dream">
+      <div class="sheet__bar">
+        <button class="btn btn--quiet" type="button" id="compose-cancel">Close</button>
+        <button class="sheet__when" type="button" id="compose-when"></button>
+        <button class="btn btn--quiet" type="button" id="compose-delete">Delete</button>
+      </div>
+
+      <div class="compose">
+        <input
+          class="compose__title"
+          id="compose-title"
+          type="text"
+          placeholder="Give it a name"
+          autocomplete="off"
+          spellcheck="true"
+          enterkeyhint="next"
+        />
+        <textarea
+          class="compose__body"
+          id="compose-body"
+          placeholder="What did you dream?"
+          spellcheck="true"
+          autocapitalize="sentences"
+        ></textarea>
+      </div>
+
+      <div class="sheet__foot">
+        <span class="sheet__status" id="compose-status"></span>
+        <button class="btn btn--primary" type="button" id="compose-save">Keep</button>
+      </div>
+    </div>
+
+    <!-- ===================================================== MODAL ==== -->
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal__scrim" id="modal-scrim"></div>
+      <div class="modal__panel">
+        <div class="modal__grip"></div>
+        <h2 class="modal__title" id="modal-title"></h2>
+        <div class="modal__body" id="modal-body"></div>
+        <div id="modal-slot"></div>
+        <div class="modal__actions" id="modal-actions"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

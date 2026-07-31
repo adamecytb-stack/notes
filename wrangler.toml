@@ -1,0 +1,23 @@
+name = "dream-journal"
+main = "worker/index.js"
+compatibility_date = "2025-05-01"
+
+# Static PWA files. Assets are served directly; anything that isn't a file
+# (e.g. /api/*, /settings) falls through to the Worker in worker/index.js.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "none"
+
+# Run `npx wrangler d1 create dreams` and paste the id it prints here.
+[[d1_databases]]
+binding = "DB"
+database_name = "dreams"
+database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+
+[observability]
+enabled = true
+
+# Secrets are NOT set here. Set them once with:
+#   npx wrangler secret put SETUP_CODE
+#   npx wrangler secret put SALT_PEPPER
