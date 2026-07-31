@@ -49,6 +49,23 @@ const call = client.call.bind(client);
   });
   check('register rejects wrong setup code', r.status === 403);
 
+  console.log('\n— a short setup code cannot be brute-forced —');
+  let lockedAfter = 0;
+  for (let i = 0; i < 8; i++) {
+    const guess = await call('POST', '/api/auth/register', {
+      username: `guess${i}`, authProof: ada.authProof, kdfSalt: salt, setupCode: String(1000 + i),
+    });
+    if (guess.status === 429) { lockedAfter = i + 1; break; }
+  }
+  check('sign-up locks out after repeated wrong codes', lockedAfter > 0,
+    lockedAfter ? `(after ${lockedAfter} guesses)` : '(never locked — brute-forceable!)');
+
+  // Clear the lockout so the rest of the suite can register normally.
+  execSync(
+    `npx wrangler d1 execute dreams --local --command "DELETE FROM login_attempts"`,
+    { cwd: process.cwd(), stdio: ['ignore', 'ignore', 'ignore'] },
+  );
+
   console.log('\n— writing a dream —');
   const entryId = crypto.randomUUID();
   const blob = await encryptEntry(ada.vaultKey, entryId, { v: 1, ...DREAM });

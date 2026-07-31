@@ -177,6 +177,12 @@ async function authenticate(request, env) {
 
 const LOCK_STEPS = [0, 0, 0, 5_000, 15_000, 60_000, 300_000, 900_000];
 
+/**
+ * Throttle key for sign-up attempts. "!" is not a legal username character, so
+ * this can never collide with a real account's failure count.
+ */
+const REGISTER_KEY = '!register';
+
 async function checkLock(env, username) {
   const row = await env.DB.prepare(
     'SELECT fail_count, locked_until FROM login_attempts WHERE username = ?',
@@ -247,7 +253,21 @@ async function handleRegister(request, env) {
     return bad('Invalid salt');
   }
   if (!env.SETUP_CODE) return bad('Server is not configured for sign-up', 503);
+
+  // Sign-up needs the same backoff login has. Without it, a short setup code is
+  // only a few thousand requests away from someone claiming one of the two
+  // seats. Keyed globally rather than per-username, because the attacker picks
+  // the username.
+  const lock = await checkLock(env, REGISTER_KEY);
+  if (lock.locked) {
+    return json(
+      { error: `Too many attempts. Try again in ${lock.retryAfter}s.`, retryAfter: lock.retryAfter },
+      429,
+    );
+  }
+
   if (typeof body.setupCode !== 'string' || !timingSafeEqual(body.setupCode, env.SETUP_CODE)) {
+    await recordFailure(env, REGISTER_KEY);
     return bad('That setup code is not right', 403);
   }
 
@@ -270,6 +290,7 @@ async function handleRegister(request, env) {
     .bind(id, username, body.kdfSalt, verifier, verifierSalt, Date.now())
     .run();
 
+  await clearFailures(env, REGISTER_KEY);
   const token = await createSession(env, id);
   return json({ username }, 200, {
     'set-cookie': sessionCookie(token, SESSION_TTL_MS / 1000),
