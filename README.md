@@ -79,10 +79,55 @@ Other things that follow from taking this seriously:
 
 ---
 
-## Deploying it
+## Deploying from a phone
 
-You need a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and
-Node installed.
+No computer needed. GitHub does the work; you just fill in three secrets in a
+browser. Use a mobile *browser* rather than the GitHub app — the app can't
+reach repository settings.
+
+**1. Get a Cloudflare API token** — sign up at
+[cloudflare.com](https://dash.cloudflare.com/sign-up), then go to
+**My Profile → API Tokens → Create Token** and use the **Edit Cloudflare
+Workers** template. Copy the token when it appears; it is shown once.
+
+**2. Get your account ID** — on the Cloudflare dashboard home, open **Workers &
+Pages**. The account ID is in the right-hand column (or in the URL after
+`dash.cloudflare.com/`).
+
+**3. Add three secrets to this repo** — go to **Settings → Secrets and variables
+→ Actions → New repository secret**, and add:
+
+| Name | Value |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | the token from step 1 |
+| `CLOUDFLARE_ACCOUNT_ID` | the id from step 2 |
+| `SETUP_CODE` | invent one — you and your friend each use it once |
+
+**4. Run it** — **Actions → Deploy Nocturne → Run workflow**.
+
+It creates the database, builds the tables, deploys, and prints your URL in the
+run summary. Every later push deploys again automatically.
+
+There is no fourth secret to manage: `SALT_PEPPER` is generated on the first
+run and then left alone forever.
+
+### Then, on the iPhone
+
+Open the URL in **Safari** → *First time here? Create your account* → your name,
+a passphrase, and the setup code. Then **Share → Add to Home Screen**.
+
+Send your friend the same link and setup code. After the second account,
+sign-up closes permanently.
+
+> Use a passphrase you will not forget — several unrelated words is both stronger
+> and easier to remember than a mangled single word. There is no recovery.
+
+---
+
+## Deploying from a computer
+
+If you do have a laptop, this is the shorter path. You need a free
+[Cloudflare account](https://dash.cloudflare.com/sign-up) and Node installed.
 
 ```bash
 npm install
@@ -124,22 +169,14 @@ npm run deploy
 ```
 
 Wrangler prints a URL like `https://dream-journal.<your-name>.workers.dev`. That
-is the app, and it is now running 24/7.
+is the app, and it is now running 24/7. Claim the two accounts as described
+above.
 
-**5. Claim your two accounts**
+---
 
-Open the URL, tap *Create your account*, and enter a name, a passphrase and the
-setup code. Send the same link and code to your friend. After the second
-account, registration closes permanently.
+## Why Add to Home Screen matters
 
-> Use a passphrase you will not forget — several unrelated words is both stronger
-> and easier to remember than a mangled single word. There is no recovery.
-
-### Putting it on the iPhone Home Screen
-
-Open the link in **Safari** → Share → **Add to Home Screen**.
-
-This matters for more than convenience: it drops the browser chrome, gives it
+It is not only convenience: it drops the browser chrome, gives it
 its own icon, makes it launch instantly offline, and it is the only way iOS will
 allow notifications. Long-pressing the icon also gives a *Record a dream*
 shortcut that opens straight into a blank entry.
