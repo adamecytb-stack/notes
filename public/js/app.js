@@ -396,7 +396,14 @@ function summarise(entry) {
   return { heading: heading || 'Untitled dream', excerpt: rest };
 }
 
-$('#open-settings').addEventListener('click', () => showView('settings'));
+$('#open-settings').addEventListener('click', () => {
+  showView('settings');
+  // Whether the companion and reminders can run depends on server-side keys,
+  // which can be added after this phone last loaded. Re-asking here means the
+  // switches come alive on the next visit to Settings rather than needing the
+  // app to be closed and reopened.
+  void recheckCapabilities();
+});
 $('#settings-back').addEventListener('click', () => history.back());
 $('#open-patterns').addEventListener('click', () => showView('patterns'));
 $('#patterns-back').addEventListener('click', () => history.back());
@@ -551,6 +558,147 @@ let dirty = false;
 /** Working copy of everything the questions collect for the open entry. */
 let draft = emptyEntry();
 
+/* ------------------------------------------------------------- the steps */
+
+const STEPS = ['lucid', 'name', 'story', 'feel', 'detail', 'context'];
+let step = 0;
+
+/**
+ * Only the current step is on screen. The lucid answer is first because it is
+ * one tap and decides which questions come later — asking it before there is
+ * any typing keeps the 3am path to two taps.
+ */
+function showStep(next) {
+  step = Math.max(0, Math.min(STEPS.length - 1, next));
+
+  for (const section of document.querySelectorAll('.step')) {
+    section.classList.toggle('is-active', Number(section.dataset.step) === step);
+  }
+
+  $('#compose-back').classList.toggle('is-hidden', step === 0);
+  const last = step === STEPS.length - 1;
+  $('#compose-next').textContent = last ? 'Keep' : 'Next';
+
+  renderDots();
+  $('#compose-scroll').scrollTop = 0;
+
+  // Put the cursor where the answer goes, so typing can start immediately.
+  if (STEPS[step] === 'name') titleInput.focus();
+  if (STEPS[step] === 'story') bodyInput.focus();
+  if (STEPS[step] === 'context') refreshTip();
+}
+
+function renderDots() {
+  const dots = $('#compose-dots');
+  dots.replaceChildren();
+  for (let i = 0; i < STEPS.length; i++) {
+    const dot = el('span', 'dot-step');
+    if (i === step) dot.classList.add('is-here');
+    else if (i < step) dot.classList.add('is-done');
+    dots.appendChild(dot);
+  }
+}
+
+$('#compose-back').addEventListener('click', () => showStep(step - 1));
+
+$('#compose-next').addEventListener('click', async () => {
+  if (step < STEPS.length - 1) {
+    // Nothing is mandatory — every step can be walked past.
+    showStep(step + 1);
+    return;
+  }
+  clearTimeout(saveTimer);
+  const hasContent = titleInput.value.trim() || bodyInput.value.trim();
+  const id = composing?.id;
+  if (hasContent) await commit();
+  closeCompose();
+  if (!hasContent) return;
+
+  if (prefs.aiAfterEntry && hasConsented() && aiAvailable) {
+    const entry = state.entries.get(id) || sortedEntries()[0];
+    if (entry) showReading('On this dream', (all) => buildEntryPrompt(entry, all));
+  } else {
+    toast('Kept');
+  }
+});
+
+/* --------------------------------------------------------------- the faces */
+
+const MOODS = [
+  { label: 'Awful', curve: 11 },
+  { label: 'Uneasy', curve: 14 },
+  { label: 'Neutral', curve: 15.6 },
+  { label: 'Good', curve: 18 },
+  { label: 'Wonderful', curve: 20.5 },
+];
+
+/**
+ * Drawn rather than emoji: the mouth is one quadratic whose control point
+ * slides from above the line (a frown) to below it (a grin), which keeps the
+ * five faces a single consistent family instead of five unrelated glyphs.
+ */
+function faceSvg(curve) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const ring = document.createElementNS(ns, 'circle');
+  ring.setAttribute('cx', '12');
+  ring.setAttribute('cy', '12');
+  ring.setAttribute('r', '9.2');
+  ring.setAttribute('fill', 'none');
+  ring.setAttribute('stroke', 'currentColor');
+  ring.setAttribute('stroke-width', '1.4');
+  svg.appendChild(ring);
+
+  for (const cx of [8.9, 15.1]) {
+    const eye = document.createElementNS(ns, 'circle');
+    eye.setAttribute('cx', String(cx));
+    eye.setAttribute('cy', '10');
+    eye.setAttribute('r', '1.15');
+    eye.setAttribute('fill', 'currentColor');
+    svg.appendChild(eye);
+  }
+
+  const mouth = document.createElementNS(ns, 'path');
+  mouth.setAttribute('d', `M7.6 15.4 Q12 ${curve} 16.4 15.4`);
+  mouth.setAttribute('fill', 'none');
+  mouth.setAttribute('stroke', 'currentColor');
+  mouth.setAttribute('stroke-width', '1.4');
+  mouth.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(mouth);
+
+  return svg;
+}
+
+function buildFaces() {
+  const node = $('#q-mood');
+  node.replaceChildren();
+  MOODS.forEach((mood, i) => {
+    const btn = el('button', 'face');
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('aria-label', mood.label);
+    btn.appendChild(faceSvg(mood.curve));
+    btn.addEventListener('click', () => {
+      const already = btn.getAttribute('aria-pressed') === 'true';
+      draft.mood = already ? 0 : i + 1;
+      setFaces(draft.mood);
+      mark();
+    });
+    node.appendChild(btn);
+  });
+}
+
+function setFaces(value) {
+  const node = $('#q-mood');
+  [...node.children].forEach((b, i) =>
+    b.setAttribute('aria-pressed', String(i + 1 === value)),
+  );
+  $('#q-mood-label').textContent = value ? MOODS[value - 1].label : '';
+}
+
 /** Multi-select chip group. */
 function chipGroup(node, options, { onChange }) {
   node.replaceChildren();
@@ -623,6 +771,8 @@ const mark = () => {
   refreshTip();
 };
 
+buildFaces();
+
 chipOne($('#q-trigger'), LUCID_TRIGGERS, {
   onChange: (v) => {
     draft.trigger = v;
@@ -682,6 +832,10 @@ $('#q-lucid').addEventListener('click', async (e) => {
   }
   showBranch();
   mark();
+  // Answering is the whole point of this step, so move on without a second tap.
+  // Synchronously, not after a beat: iOS only raises the keyboard for a focus()
+  // that happens inside the tap itself, and the next step wants the keyboard.
+  if (step === 0) showStep(1);
 
   // Answering "yes" for the first time turns sharing on, since that is the
   // whole reason the two of them are doing this together.
@@ -734,7 +888,6 @@ function showBranch() {
   const answered = draft.lucid !== null && draft.lucid !== undefined;
   $('#branch-lucid').classList.toggle('hidden', draft.lucid !== true);
   $('#branch-ordinary').classList.toggle('hidden', draft.lucid !== false);
-  $('#branch-tail').classList.toggle('hidden', !answered);
   $('#share-row').classList.toggle('hidden', !answered || !canShare());
   if (canShare()) {
     $('#share-label').textContent = `Share this with ${sharing.peerName}`;
@@ -771,7 +924,6 @@ $('#q-share').addEventListener('click', async (e) => {
 });
 
 function refreshTip() {
-  if ($('#branch-tail').classList.contains('hidden')) return;
   const tip = tipFor(
     { ...draft, title: titleInput.value, body: bodyInput.value },
     computeStats(sortedEntries()),
@@ -792,6 +944,7 @@ function fillReflect(entry) {
   setChips($('#q-substances'), draft.env.substances);
   setScale($('#q-excitement'), draft.excitement);
   setScale($('#q-vividness'), draft.vividness);
+  setFaces(draft.mood);
 
   $('#q-prior').value = draft.priorActivity;
   $('#q-actions').value = draft.actions;
@@ -829,12 +982,10 @@ function openCompose(entry) {
   updateWhenLabel();
 
   fillReflect(entry);
-  // The questions stay out of the way until there is a dream to ask about.
-  $('#reflect').classList.toggle('hidden', !(entry?.body || entry?.title));
-  $('#compose-scroll').scrollTop = 0;
-
   showView('compose');
-  bodyInput.focus();
+  // A new dream starts on the lucid question; reopening an old one starts on
+  // what it says, since that is what you came back to read.
+  showStep(entry ? 2 : 0);
   if (entry) bodyInput.setSelectionRange(bodyInput.value.length, bodyInput.value.length);
 }
 
@@ -845,15 +996,9 @@ function updateWhenLabel() {
 $('#record').addEventListener('click', () => openCompose(null));
 
 for (const input of [titleInput, bodyInput]) {
-  input.addEventListener('input', () => {
-    // Encrypted autosave: after two seconds of stillness the dream is safe,
-    // whether or not anyone taps Keep. mark() also reveals the questions once
-    // there is actually a dream written down.
-    if (bodyInput.value.trim() || titleInput.value.trim()) {
-      $('#reflect').classList.remove('hidden');
-    }
-    mark();
-  });
+  // Encrypted autosave: after two seconds of stillness the dream is safe,
+  // whether or not anyone reaches the end of the questions.
+  input.addEventListener('input', mark);
 }
 
 async function commit({ silent = false } = {}) {
@@ -885,22 +1030,8 @@ async function commit({ silent = false } = {}) {
   }
 }
 
-$('#compose-save').addEventListener('click', async () => {
-  clearTimeout(saveTimer);
-  const hasContent = titleInput.value.trim() || bodyInput.value.trim();
-  const id = composing?.id;
-  if (hasContent) await commit();
-  closeCompose();
-  if (!hasContent) return;
-
-  if (prefs.aiAfterEntry && hasConsented() && aiAvailable) {
-    const entry = state.entries.get(id) || sortedEntries()[0];
-    if (entry) showReading('On this dream', (all) => buildEntryPrompt(entry, all));
-  } else {
-    toast('Kept');
-  }
-});
-
+// "Done" leaves at any point and keeps whatever is written — you should never
+// have to reach the last step to save a dream.
 $('#compose-cancel').addEventListener('click', async () => {
   clearTimeout(saveTimer);
   if (dirty && (titleInput.value.trim() || bodyInput.value.trim())) await commit({ silent: true });
@@ -966,6 +1097,24 @@ function closeCompose({ pop = true } = {}) {
 }
 
 /* =============================================================== SETTINGS */
+
+/**
+ * Re-reads the two server-side facts that gate features — is a Gemini key set,
+ * are VAPID keys set — and repaints the rows that depend on them.
+ */
+async function recheckCapabilities() {
+  try {
+    const me = await api.me();
+    aiAvailable = !!me.aiAvailable;
+    push.available = !!me.pushAvailable;
+    push.publicKey = me.vapidPublicKey;
+  } catch {
+    return; // offline; whatever we knew at sign-in still stands
+  }
+  refreshCompanion();
+  await refreshPushState();
+  updateNotifyHint();
+}
 
 function refreshSettings() {
   $('#set-username').textContent = state.username || '—';

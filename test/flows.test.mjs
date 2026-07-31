@@ -7,7 +7,7 @@
  */
 
 import { chromium, devices } from 'playwright';
-import { BASE, check, report } from './vault.mjs';
+import { BASE, check, report, goToStep, keepDream } from './vault.mjs';
 
 const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
 
@@ -33,11 +33,12 @@ const titles = (page) =>
 
   console.log('\n— writing a new dream —');
   await page.click('#record');
+  await goToStep(page, 'story');
   await page.fill('#compose-body', 'A corridor of doors that all opened onto the same beach.');
   await page.waitForTimeout(2600);
   const status = await page.textContent('#compose-status');
   check('autosaves without pressing Keep', /Saved/.test(status), `(status: "${status}")`);
-  await page.click('#compose-save');
+  await keepDream(page);
   await page.waitForTimeout(900);
   const afterWrite = await titles(page);
   check('new dream appears in the timeline',
@@ -97,9 +98,10 @@ const titles = (page) =>
   console.log('\n— offline capture —');
   await ctx.setOffline(true);
   await page.click('#record');
+  await goToStep(page, 'story');
   await page.fill('#compose-body', 'Written with no signal at all.');
   await page.waitForTimeout(2600);
-  await page.click('#compose-save');
+  await keepDream(page);
   await page.waitForTimeout(700);
   const offlineTitles = await titles(page);
   check('dream is kept while offline',

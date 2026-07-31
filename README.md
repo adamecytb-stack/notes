@@ -360,20 +360,26 @@ and deliberately nothing more.
 - **Journal** — dreams grouped by the night they belong to. Anything before noon
   files under the previous evening, because a dream at 3am on Tuesday was
   Monday night's. Lucid ones are marked and read warm.
-- **Writing** — one tap from launch to a blinking cursor. No fields to fill in,
-  no chrome. It saves itself, encrypted, two seconds after you stop typing, so a
-  dream is never lost to a dropped phone or a closed app.
-- **The questions afterwards** — once something is written, the flow asks the
-  one that matters: *did you realise you were dreaming?* Answering opens the
-  branch that fits.
-  - **Lucid** — what tipped you off, what you were doing the moment before
-    awareness arrived, what you did once you knew, how excited you were, how
-    long it lasted, how it ended.
-  - **Not lucid** — which parts could not have happened awake. Those become
-    your dream signs.
-  - Then vividness, and an optional block for the night's conditions: where you
-    slept, bedtime, whether you woke in the night, anything before bed.
-  - Every question is skippable. Keep is live the whole time.
+- **Writing** — one question on the screen at a time, in the order a half-awake
+  person can answer them. It saves itself, encrypted, two seconds after you stop
+  typing, so a dream is never lost to a dropped phone or a closed app.
+  1. **Did you know you were dreaming?** Two buttons, and the answer moves you
+     on by itself. It is first because it is one tap, it is the whole point, and
+     it decides which questions come later.
+  2. **Give it a name.**
+  3. **What happened?**
+  4. **How did it feel?** Five faces, worst to best.
+  5. **The branch that fits your first answer.**
+     - **Lucid** — what tipped you off, what you were doing the moment before
+       awareness arrived, what you did once you knew, how excited you were, how
+       long it lasted, how it ended.
+     - **Not lucid** — which parts could not have happened awake. Those become
+       your dream signs.
+     - Then vividness, either way.
+  6. **Last night** — where you slept, bedtime, whether you woke in the night,
+     anything before bed, and the tip.
+  - Every step is skippable, and **Done** in the top corner leaves at any point
+    and keeps what is written. You never have to reach the end to save a dream.
 - **A tip that fits what just happened** — not generic technique. Woke straight
   up from a lucid dream and it tells you to rub your hands together next time;
   tagged a sign that is now in three dreams and it tells you to rehearse it

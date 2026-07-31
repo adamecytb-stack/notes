@@ -6,7 +6,7 @@
  */
 
 import { chromium, devices } from 'playwright';
-import { BASE, check, report } from './vault.mjs';
+import { BASE, check, report, goToStep, keepDream, stepIndex } from './vault.mjs';
 
 const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
 
@@ -27,22 +27,45 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.waitForSelector('#screen-journal.is-active', { timeout: 30000 });
   await page.waitForTimeout(1500);
 
-  console.log('\n— the questions stay out of the way until there is a dream —');
+  console.log('\n— one question at a time, lucid first —');
   await page.click('#record');
   await page.waitForTimeout(400);
-  check('reflect hidden on a blank entry', await page.isHidden('#reflect'));
+  check('a new dream opens on the lucid question', (await stepIndex(page)) === 0);
+  check('the question is asked before anything is typed',
+    await page.isVisible('#q-lucid'));
+  check('nothing else is on screen yet', await page.isHidden('#compose-body'));
+  check('there is nowhere to go back to', await page.isHidden('#compose-back'));
 
-  await page.fill('#compose-body', 'I was in a corridor where every door opened onto the same beach.');
+  console.log('\n— answering moves you on by itself —');
+  await page.click('#q-lucid button[data-lucid="yes"]');
+  await page.waitForTimeout(400);
+  check('answering advances without a second tap', (await stepIndex(page)) === 1);
+  check('the name is asked second', await page.isVisible('#compose-title'));
+  check('back is offered now', await page.isVisible('#compose-back'));
+
+  await page.fill('#compose-title', 'The corridor of doors');
+  await page.click('#compose-next');
   await page.waitForTimeout(300);
-  check('reflect appears once something is written', await page.isVisible('#reflect'));
-  check('branches stay closed until lucid is answered', await page.isHidden('#branch-tail'));
+  check('what happened is asked third', await page.isVisible('#compose-body'));
+  await page.fill('#compose-body', 'I was in a corridor where every door opened onto the same beach.');
+
+  console.log('\n— the faces —');
+  await page.click('#compose-next');
+  await page.waitForTimeout(300);
+  check('five faces to choose from', (await page.$$('#q-mood .face')).length === 5);
+  await page.click('#q-mood .face:nth-child(5)');
+  await page.waitForTimeout(200);
+  check('picking a face names the feeling',
+    (await page.textContent('#q-mood-label')).trim().length > 0,
+    `(saw: "${await page.textContent('#q-mood-label')}")`);
+  check('the chosen face is the pressed one',
+    (await page.getAttribute('#q-mood .face:nth-child(5)', 'aria-pressed')) === 'true');
 
   console.log('\n— the lucid branch —');
-  await page.click('#q-lucid button[data-lucid="yes"]');
+  await page.click('#compose-next');
   await page.waitForTimeout(300);
   check('lucid branch opens', await page.isVisible('#branch-lucid'));
   check('ordinary branch stays closed', await page.isHidden('#branch-ordinary'));
-  check('shared tail opens', await page.isVisible('#branch-tail'));
 
   await page.click('#q-trigger button:has-text("Something did not make logical sense")');
   await page.fill('#q-prior', 'Trying to read a sign that kept changing');
@@ -53,19 +76,21 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.click('#q-vividness button:nth-child(4)');
   await page.waitForTimeout(300);
 
+  console.log('\n— conditions, and the tip that reads them —');
+  await page.click('#compose-next');
+  await page.waitForTimeout(300);
   const tipTitle = await page.textContent('#tip-title');
   check('tip responds to how the dream ended', /rub your hands|stay still/i.test(tipTitle),
     `(saw: "${tipTitle}")`);
+  check('the last step offers Keep, not Next',
+    (await page.textContent('#compose-next')).trim() === 'Keep');
 
-  console.log('\n— conditions —');
-  await page.click('.fold__head');
-  await page.waitForTimeout(300);
   await page.click('#q-place button:has-text("A friend\'s")');
   await page.click('#q-woke');
   await page.click('#q-substances button:has-text("Caffeine")');
   await page.waitForTimeout(2600); // let the encrypted autosave land
 
-  await page.click('#compose-save');
+  await page.click('#compose-next');
   await page.waitForTimeout(1200);
 
   console.log('\n— it survives the round trip —');
@@ -76,13 +101,25 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.click('.entry--lucid');
   await page.waitForTimeout(700);
 
+  check('reopening lands on what the dream says', (await stepIndex(page)) === 2);
+  check('the story reloaded', (await page.inputValue('#compose-body')).includes('same beach'));
+
+  await goToStep(page, 'lucid');
   check('lucid answer reloaded',
     (await page.getAttribute('#q-lucid button[data-lucid="yes"]', 'aria-pressed')) === 'true');
+
+  await goToStep(page, 'feel');
+  check('the face reloaded',
+    (await page.getAttribute('#q-mood .face:nth-child(5)', 'aria-pressed')) === 'true');
+
+  await goToStep(page, 'detail');
   check('trigger reloaded',
     (await page.getAttribute('#q-trigger button:has-text("Something did not make logical sense")', 'aria-pressed')) === 'true');
   check('free text reloaded', (await page.inputValue('#q-actions')).includes('flew straight up'));
   check('excitement reloaded',
     (await page.getAttribute('#q-excitement button:nth-child(5)', 'aria-pressed')) === 'true');
+
+  await goToStep(page, 'context');
   check('conditions reloaded',
     (await page.getAttribute('#q-woke', 'aria-pressed')) === 'true');
   await page.click('#compose-cancel');
@@ -101,16 +138,18 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.click('#patterns-back');
   await page.waitForTimeout(600);
   await page.click('#record');
-  await page.fill('#compose-body', 'A train platform that was also my old kitchen.');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
   await page.click('#q-lucid button[data-lucid="no"]');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
+  await goToStep(page, 'story');
+  await page.fill('#compose-body', 'A train platform that was also my old kitchen.');
+  await goToStep(page, 'detail');
   check('ordinary branch opens', await page.isVisible('#branch-ordinary'));
   check('lucid branch stays closed', await page.isHidden('#branch-lucid'));
 
   await page.click('#q-signs button:has-text("A place that was two places at once")');
   await page.waitForTimeout(2600);
-  await page.click('#compose-save');
+  await keepDream(page);
   await page.waitForTimeout(1000);
 
   await page.click('#open-patterns');

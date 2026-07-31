@@ -21,6 +21,7 @@ export function emptyEntry() {
     // null = not asked yet, which is a different thing from answering "no".
     // Everything that reads this only tests truthiness, so null behaves as no.
     lucid: null,
+    mood: 0, // 1–5, how it felt. 0 = unanswered
     vividness: 0, // 1–5, 0 = unanswered
 
     // Ordinary dreams: the raw material for recognising a dream sign later.

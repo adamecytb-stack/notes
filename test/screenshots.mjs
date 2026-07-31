@@ -9,7 +9,7 @@
 
 import { chromium, devices } from 'playwright';
 import { mkdirSync } from 'node:fs';
-import { BASE } from './vault.mjs';
+import { BASE, goToStep } from './vault.mjs';
 
 const OUT = process.env.SHOTS_DIR || 'screenshots';
 const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
@@ -44,14 +44,34 @@ const errors = [];
   await page.screenshot({ path: `${OUT}/2-journal.png` });
   await page.screenshot({ path: `${OUT}/2-journal-full.png`, fullPage: true });
 
-  // compose
+  // compose, step by step
   await page.click('#record');
   await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/3a-lucid.png` });
+
+  await page.click('#q-lucid button[data-lucid="yes"]');
+  await page.waitForTimeout(600);
   await page.fill('#compose-title', 'The lighthouse that walked');
+  await page.screenshot({ path: `${OUT}/3b-name.png` });
+
+  await goToStep(page, 'story');
   await page.fill('#compose-body',
     'It came down off the rocks and walked into the town, very slowly, and nobody ran. The light kept turning the whole time and every time it passed over me I remembered something I had forgotten.');
   await page.waitForTimeout(2600); // let the encrypted autosave land
-  await page.screenshot({ path: `${OUT}/3-compose.png` });
+  await page.screenshot({ path: `${OUT}/3c-story.png` });
+
+  await goToStep(page, 'feel');
+  await page.click('#q-mood .face:nth-child(4)');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/3d-feel.png` });
+
+  await goToStep(page, 'detail');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/3e-detail.png` });
+
+  await goToStep(page, 'context');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/3f-context.png` });
 
   await page.click('#compose-cancel');
   await page.waitForTimeout(900);

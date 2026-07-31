@@ -505,166 +505,153 @@
       </section>
     </div>
 
-    <!-- =================================================== COMPOSE ==== -->
-    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Write a dream">
+    <!-- =================================================== COMPOSE ==== -->    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Write a dream">
       <div class="sheet__bar">
-        <button class="btn btn--quiet" type="button" id="compose-cancel">Close</button>
+        <button class="btn btn--quiet" type="button" id="compose-cancel">Done</button>
         <button class="sheet__when" type="button" id="compose-when"></button>
         <button class="btn btn--quiet" type="button" id="compose-delete">Delete</button>
       </div>
 
       <div class="compose" id="compose-scroll">
-        <input
-          class="compose__title"
-          id="compose-title"
-          type="text"
-          placeholder="Give it a name"
-          autocomplete="off"
-          spellcheck="true"
-          enterkeyhint="next"
-        />
-        <textarea
-          class="compose__body"
-          id="compose-body"
-          placeholder="What did you dream?"
-          spellcheck="true"
-          autocapitalize="sentences"
-        ></textarea>
+        <!-- One question at a time. The order is deliberate: the lucid answer
+             is a single tap and decides everything downstream, so it comes
+             first, before there is any typing to do. -->
 
-        <!-- Everything below appears once there is something written. It is
-             all optional — Keep is always live. -->
-        <div class="reflect hidden" id="reflect">
-          <div class="reflect__rule"><span class="t-meta">The part that matters</span></div>
+        <section class="step is-active" data-step="0">
+          <h2 class="step__ask">Did you know you were dreaming?</h2>
+          <p class="step__note">While it was happening — not looking back on it now.</p>
+          <div class="choice choice--two" id="q-lucid">
+            <button type="button" data-lucid="yes">Yes, I was lucid</button>
+            <button type="button" data-lucid="no">No</button>
+          </div>
+        </section>
 
-          <section class="q">
-            <h3 class="q__ask">Did you realise you were dreaming?</h3>
-            <div class="choice choice--two" id="q-lucid">
-              <button type="button" data-lucid="yes">Yes — I was lucid</button>
-              <button type="button" data-lucid="no">No</button>
-            </div>
-          </section>
+        <section class="step" data-step="1">
+          <h2 class="step__ask">Give it a name</h2>
+          <p class="step__note">Whatever you would call it later. Skip if nothing comes.</p>
+          <input
+            class="compose__title"
+            id="compose-title"
+            type="text"
+            placeholder="The lighthouse that walked"
+            autocomplete="off"
+            spellcheck="true"
+            enterkeyhint="next"
+          />
+        </section>
 
+        <section class="step" data-step="2">
+          <h2 class="step__ask">What happened?</h2>
+          <p class="step__note">Write it messy. Fragments are fine — they fade fast.</p>
+          <textarea
+            class="compose__body"
+            id="compose-body"
+            placeholder="I was descending past shelves that never ended…"
+            spellcheck="true"
+            autocapitalize="sentences"
+          ></textarea>
+        </section>
+
+        <section class="step" data-step="3">
+          <h2 class="step__ask">How did it feel?</h2>
+          <p class="step__note">The feeling you woke up with.</p>
+          <div class="faces" id="q-mood"></div>
+          <p class="faces__label" id="q-mood-label"></p>
+        </section>
+
+        <section class="step" data-step="4">
           <!-- Lucid branch -->
           <div class="hidden" id="branch-lucid">
-            <section class="q">
-              <h3 class="q__ask">What tipped you off?</h3>
-              <div class="chips" id="q-trigger"></div>
-              <input class="input input--quiet" id="q-trigger-other" type="text"
-                     placeholder="Or describe it" autocomplete="off" />
-            </section>
+            <h2 class="step__ask">What tipped you off?</h2>
+            <div class="chips chips--single" id="q-trigger"></div>
+            <input class="input input--quiet" id="q-trigger-other" type="text"
+                   placeholder="Or describe it" autocomplete="off" />
 
-            <section class="q">
-              <h3 class="q__ask">What were you doing just before you knew?</h3>
-              <textarea class="input input--quiet" id="q-prior" rows="2"
-                        placeholder="The moment before awareness arrived"></textarea>
-            </section>
+            <h3 class="step__sub">What were you doing just before you knew?</h3>
+            <textarea class="input input--quiet" id="q-prior" rows="2"
+                      placeholder="The moment before awareness arrived"></textarea>
 
-            <section class="q">
-              <h3 class="q__ask">What did you do once you knew?</h3>
-              <textarea class="input input--quiet" id="q-actions" rows="3"
-                        placeholder="Flew, looked at your hands, tried to change something…"></textarea>
-            </section>
+            <h3 class="step__sub">What did you do once you knew?</h3>
+            <textarea class="input input--quiet" id="q-actions" rows="3"
+                      placeholder="Flew, looked at your hands, tried to change something…"></textarea>
 
-            <section class="q">
-              <h3 class="q__ask">How excited were you?</h3>
-              <div class="scale" id="q-excitement"></div>
-              <p class="q__note">Excitement is the usual reason lucid dreams end early.</p>
-            </section>
+            <h3 class="step__sub">How excited were you?</h3>
+            <div class="scale" id="q-excitement"></div>
+            <p class="step__note">Excitement is the usual reason lucid dreams end early.</p>
 
-            <section class="q">
-              <h3 class="q__ask">How long did it last?</h3>
-              <div class="chips chips--single" id="q-duration"></div>
-            </section>
+            <h3 class="step__sub">How long did it last?</h3>
+            <div class="chips chips--single" id="q-duration"></div>
 
-            <section class="q">
-              <h3 class="q__ask">How did it end?</h3>
-              <div class="chips chips--single" id="q-ending"></div>
-            </section>
+            <h3 class="step__sub">How did it end?</h3>
+            <div class="chips chips--single" id="q-ending"></div>
           </div>
 
-          <!-- Ordinary-dream branch -->
+          <!-- Ordinary branch -->
           <div class="hidden" id="branch-ordinary">
-            <section class="q">
-              <h3 class="q__ask">Anything in it that could not happen awake?</h3>
-              <p class="q__note">
-                These build your dream signs — the things you can learn to notice from inside.
-              </p>
-              <div class="chips" id="q-signs"></div>
-              <input class="input input--quiet" id="q-signs-other" type="text"
-                     placeholder="Something else that was off" autocomplete="off" />
-            </section>
+            <h2 class="step__ask">Anything that could not happen awake?</h2>
+            <p class="step__note">
+              These build your dream signs — the things you can learn to notice from inside.
+            </p>
+            <div class="chips" id="q-signs"></div>
+            <input class="input input--quiet" id="q-signs-other" type="text"
+                   placeholder="Something else that was off" autocomplete="off" />
 
-            <section class="q">
-              <h3 class="q__ask">What did it seem to be about?</h3>
-              <textarea class="input input--quiet" id="q-theme" rows="2"
-                        placeholder="A feeling, a worry, a place — whatever it was circling"></textarea>
-            </section>
+            <h3 class="step__sub">What did it seem to be about?</h3>
+            <textarea class="input input--quiet" id="q-theme" rows="2"
+                      placeholder="A feeling, a worry, a place — whatever it was circling"></textarea>
           </div>
 
-          <!-- Shared tail -->
-          <div class="hidden" id="branch-tail">
-            <section class="q">
-              <h3 class="q__ask">How vivid was it?</h3>
-              <div class="scale" id="q-vividness"></div>
-            </section>
+          <h3 class="step__sub">How vivid was it?</h3>
+          <div class="scale" id="q-vividness"></div>
+        </section>
 
-            <details class="fold">
-              <summary class="fold__head">
-                <span class="fold__title">Last night's conditions</span>
-                <span class="fold__hint">Worth logging — patterns show up here</span>
-              </summary>
-              <div class="fold__body">
-                <section class="q">
-                  <h3 class="q__ask">Where did you sleep?</h3>
-                  <div class="chips chips--single" id="q-place"></div>
-                </section>
-                <section class="q">
-                  <h3 class="q__ask">Anything before bed?</h3>
-                  <div class="chips" id="q-substances"></div>
-                </section>
-                <section class="q">
-                  <div class="switchrow">
-                    <span class="q__ask q__ask--inline">Did you wake during the night?</span>
-                    <button class="toggle" type="button" id="q-woke" aria-pressed="false"
-                            aria-label="Woke during the night"></button>
-                  </div>
-                  <p class="q__note">The setup for wake-back-to-bed, the most effective technique there is.</p>
-                </section>
-                <section class="q">
-                  <h3 class="q__ask">Bedtime</h3>
-                  <input class="input input--quiet" id="q-bedtime" type="time" />
-                </section>
-                <section class="q">
-                  <h3 class="q__ask">Anything else about the night?</h3>
-                  <textarea class="input input--quiet" id="q-envnotes" rows="2"
-                            placeholder="Stayed at a friend's, stressed, unusually tired…"></textarea>
-                </section>
-              </div>
-            </details>
+        <section class="step" data-step="5">
+          <h2 class="step__ask">Last night</h2>
+          <p class="step__note">Optional, but this is where patterns show up.</p>
 
-            <div class="row row--stack sharerow hidden" id="share-row">
-              <div class="switchrow">
-                <span class="q__ask q__ask--inline" id="share-label">Share this with them</span>
-                <button class="toggle" type="button" id="q-share" aria-pressed="false"
-                        aria-label="Share this dream"></button>
-              </div>
-              <p class="q__note" id="share-note">
-                They will be able to read this dream. Nobody else can, including the server.
-              </p>
-            </div>
+          <h3 class="step__sub">Where did you sleep?</h3>
+          <div class="chips chips--single" id="q-place"></div>
 
-            <div class="tip" id="tip">
-              <p class="t-meta tip__label">What to try</p>
-              <h4 class="tip__title" id="tip-title"></h4>
-              <p class="tip__body" id="tip-body"></p>
-            </div>
+          <h3 class="step__sub">Anything before bed?</h3>
+          <div class="chips" id="q-substances"></div>
+
+          <div class="switchrow switchrow--spaced">
+            <span class="step__sub step__sub--inline">Did you wake during the night?</span>
+            <button class="toggle" type="button" id="q-woke" aria-pressed="false"
+                    aria-label="Woke during the night"></button>
           </div>
-        </div>
+
+          <h3 class="step__sub">Bedtime</h3>
+          <input class="input input--quiet" id="q-bedtime" type="time" />
+
+          <h3 class="step__sub">Anything else about the night?</h3>
+          <textarea class="input input--quiet" id="q-envnotes" rows="2"
+                    placeholder="Stayed at a friend's, stressed, unusually tired…"></textarea>
+
+          <div class="row row--stack sharerow hidden" id="share-row">
+            <div class="switchrow">
+              <span class="step__sub step__sub--inline" id="share-label">Share this with them</span>
+              <button class="toggle" type="button" id="q-share" aria-pressed="false"
+                      aria-label="Share this dream"></button>
+            </div>
+            <p class="step__note" id="share-note">
+              They will be able to read this dream. Nobody else can, including the server.
+            </p>
+          </div>
+
+          <div class="tip" id="tip">
+            <p class="t-meta tip__label">What to try</p>
+            <h4 class="tip__title" id="tip-title"></h4>
+            <p class="tip__body" id="tip-body"></p>
+          </div>
+        </section>
       </div>
 
       <div class="sheet__foot">
+        <button class="btn btn--quiet" type="button" id="compose-back">Back</button>
+        <span class="dots" id="compose-dots"></span>
         <span class="sheet__status" id="compose-status"></span>
-        <button class="btn btn--primary" type="button" id="compose-save">Keep</button>
+        <button class="btn btn--primary" type="button" id="compose-next">Next</button>
       </div>
     </div>
 

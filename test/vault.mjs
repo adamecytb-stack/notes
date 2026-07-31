@@ -165,6 +165,33 @@ export async function openShare(myPrivateKey, theirPublicKey, entryId, share) {
   return JSON.parse(td.decode(plain));
 }
 
+/* ----------------------------------------------------- driving the compose */
+
+/** Mirrors STEPS in public/js/app.js. */
+export const COMPOSE_STEPS = ['lucid', 'name', 'story', 'feel', 'detail', 'context'];
+
+export const stepIndex = (page) =>
+  page.$eval('.step.is-active', (n) => Number(n.dataset.step));
+
+/** Walks the sheet to a named step, forwards or back, the way a thumb would. */
+export async function goToStep(page, name) {
+  const target = COMPOSE_STEPS.indexOf(name);
+  if (target < 0) throw new Error(`no such step: ${name}`);
+  for (let guard = 0; guard <= COMPOSE_STEPS.length; guard++) {
+    const at = await stepIndex(page);
+    if (at === target) return;
+    await page.click(at < target ? '#compose-next' : '#compose-back');
+    await page.waitForTimeout(150);
+  }
+  throw new Error(`stuck before step ${name}`);
+}
+
+/** The last step's Next button is "Keep" — that is how a dream is filed. */
+export async function keepDream(page) {
+  await goToStep(page, 'context');
+  await page.click('#compose-next');
+}
+
 /* --------------------------------------------------------------- reporting */
 
 let pass = 0;
