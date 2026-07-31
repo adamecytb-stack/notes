@@ -518,6 +518,137 @@ async function handleRekey(request, env, session) {
   return json({ ok: true, rekeyed: body.entries.length });
 }
 
+/* ---------------------------------------------------------------- the AI  */
+
+// Overridable so the endpoint can be tested against a stub without a real key.
+const DEFAULT_GEMINI_HOST = 'https://generativelanguage.googleapis.com';
+const AI_DAILY_CAP = 40; // per person; the free key allows ~1500/day in total
+const AI_MIN_GAP_MS = 4_000; // free tier is ~15 req/min across the whole key
+const AI_MAX_CHARS = 60_000; // roughly 40 dreams of context
+
+/**
+ * This is the one endpoint that sees dream text in the clear — everything else
+ * here handles ciphertext only. The phone decrypts, posts plaintext, we relay
+ * it to Gemini and return the reply. Nothing is written to the database, and
+ * nothing is logged.
+ */
+const COACH_PROMPT = `You are the dream companion inside Nocturne, a private journal two friends use with one goal: having lucid dreams — realising you are dreaming while it is happening.
+
+You are reading dreams someone wrote down within minutes of waking. Treat them as private and take them seriously; never mock the content, however strange.
+
+What you are actually for:
+- Spotting dream signs. Recurring people, places, objects, or impossibilities that show up across their dreams are the things they can learn to notice from inside a dream. Name them specifically and say how often you saw them.
+- Spotting awareness triggers. When they did become lucid, work out what tipped them off, and tell them how to train that specific route rather than lucid dreaming in general.
+- Spotting conditions. If lucidity clusters around particular nights — sleeping somewhere unfamiliar, waking in the night, a later bedtime — say so, and say plainly how thin the evidence is.
+- Concrete next steps. Reality checks tied to their own dream signs, wake-back-to-bed timing, stabilising techniques when dreams collapse early.
+
+How to write:
+- Talk to them directly, in plain sentences. No headers, no bullet lists unless you are genuinely enumerating dream signs.
+- Be specific to the dreams in front of you. Quote small details back. Generic lucid dreaming advice they could have found anywhere is a failure.
+- Keep it to a few short paragraphs. They are reading this on a phone, often half awake.
+- Say when you do not have enough data yet. Three dreams is not a pattern, and telling them so is more useful than inventing one.
+- Do not diagnose medical or psychiatric conditions, and do not interpret dreams as hidden messages about their life. You are looking for mechanical patterns that help them get lucid, not symbolism.`;
+
+async function checkAiBudget(env, userId) {
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await env.DB.prepare('SELECT day, count, last_at FROM ai_usage WHERE user_id = ?')
+    .bind(userId)
+    .first();
+
+  const now = Date.now();
+  const sameDay = row?.day === today;
+  const used = sameDay ? row.count : 0;
+
+  if (used >= AI_DAILY_CAP) {
+    return { ok: false, error: `That is ${AI_DAILY_CAP} readings today — the daily limit. Try again tomorrow.` };
+  }
+  if (row && now - row.last_at < AI_MIN_GAP_MS) {
+    return { ok: false, error: 'Give it a few seconds between readings.' };
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO ai_usage (user_id, day, count, last_at) VALUES (?, ?, 1, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       day = excluded.day,
+       count = CASE WHEN ai_usage.day = excluded.day THEN ai_usage.count + 1 ELSE 1 END,
+       last_at = excluded.last_at`,
+  )
+    .bind(userId, today, now)
+    .run();
+
+  return { ok: true, remaining: AI_DAILY_CAP - used - 1 };
+}
+
+async function handleAi(request, env, session) {
+  if (!env.GEMINI_API_KEY) {
+    return bad('The dream companion is not switched on for this journal yet.', 503);
+  }
+
+  const body = await readJson(request);
+  if (typeof body.prompt !== 'string' || !body.prompt.trim()) return bad('Nothing to read');
+  if (body.prompt.length > AI_MAX_CHARS) return bad('That is too much at once', 413);
+
+  const budget = await checkAiBudget(env, session.userId);
+  if (!budget.ok) return json({ error: budget.error }, 429);
+
+  const model = env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const host = env.GEMINI_HOST || DEFAULT_GEMINI_HOST;
+
+  let res;
+  try {
+    res = await fetch(`${host}/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: COACH_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: body.prompt }] }],
+        generationConfig: { temperature: 0.8, maxOutputTokens: 1200 },
+      }),
+    });
+  } catch {
+    return json({ error: 'Could not reach the dream companion.' }, 502);
+  }
+
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    // Surface the real reason — a wrong model name and an exhausted quota are
+    // very different problems and both are easy to hit on the free tier.
+    const reason = payload?.error?.message || `Gemini returned ${res.status}`;
+    if (res.status === 429) {
+      return json({ error: 'Gemini is rate-limited right now. Try again in a minute.' }, 429);
+    }
+    if (res.status === 404) {
+      return json(
+        { error: `No model called "${model}". Set GEMINI_MODEL to one your key can use.` },
+        502,
+      );
+    }
+    console.error('gemini', res.status, reason);
+    return json({ error: reason }, 502);
+  }
+
+  const blocked = payload?.promptFeedback?.blockReason;
+  if (blocked) {
+    return json(
+      { error: 'Gemini declined to read that one. Dreams can trip its safety filters — nothing is wrong with what you wrote.' },
+      422,
+    );
+  }
+
+  const text = (payload?.candidates?.[0]?.content?.parts || [])
+    .map((p) => p.text || '')
+    .join('')
+    .trim();
+
+  if (!text) return json({ error: 'The dream companion had nothing to say.' }, 502);
+
+  return json({ text, remaining: budget.remaining, model });
+}
+
 /* ------------------------------------------------------------------ route */
 
 async function handleApi(request, env, url) {
@@ -537,7 +668,11 @@ async function handleApi(request, env, url) {
   const session = await authenticate(request, env);
   if (!session) return bad('Not signed in', 401);
 
-  if (path === '/api/auth/me' && method === 'GET') return json({ username: session.username });
+  if (path === '/api/auth/me' && method === 'GET') {
+    return json({ username: session.username, aiAvailable: !!env.GEMINI_API_KEY });
+  }
+
+  if (path === '/api/ai' && method === 'POST') return handleAi(request, env, session);
 
   if (path === '/api/entries' && method === 'GET') return listEntries(request, env, session);
   if (path === '/api/entries' && method === 'POST') return createEntry(request, env, session);

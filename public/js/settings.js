@@ -12,6 +12,9 @@ const DEFAULTS = {
   privacyScreen: true,
   notify: false,
   notifyTime: '07:15',
+  // Off until explicitly granted. Nothing reaches Gemini before this is true.
+  aiConsent: false,
+  aiAfterEntry: false,
 };
 
 export const prefs = load();

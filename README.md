@@ -183,6 +183,65 @@ shortcut that opens straight into a blank entry.
 
 ---
 
+## The dream companion
+
+An optional reader that goes through your journal looking for the things that
+actually make people lucid: recurring dream signs you could learn to notice
+from inside a dream, what tipped you off the times you *did* become aware, and
+whether lucidity clusters around particular nights. It runs on **Google
+Gemini**, whose free tier is genuinely free — no card, roughly 15 requests a
+minute and 1,500 a day, far more than two people need.
+
+There are three ways in, all in Settings: **Find my patterns**, **When should
+I sleep?**, and a toggle to get a short note on each dream as you write it.
+
+### This is the one thing that leaves your phone
+
+Everything else in this app is built so the server cannot read a dream. The
+companion is the exception, and it is off by default behind a consent screen
+that spells this out:
+
+- Dreams are decrypted on the phone and sent to Google Gemini to be read.
+- They pass through your Worker on the way, in the clear.
+- **On the free tier, Google may use what you send to improve its products.**
+  Enabling billing on the key stops that.
+- Nothing is sent until you ask for a reading, and nothing is stored — the
+  server keeps a per-person counter and no text.
+
+Turning the toggle off stops all of it.
+
+### Switching it on
+
+Get a key from [Google AI Studio](https://aistudio.google.com/apikey), then:
+
+```bash
+npx wrangler secret put GEMINI_API_KEY
+```
+
+That is the whole setup — the companion appears in Settings on the next load.
+
+Two optional variables in `wrangler.toml` if you need them:
+
+| Variable | Default | For |
+| --- | --- | --- |
+| `GEMINI_MODEL` | `gemini-3.6-flash` | Pinning a different model |
+| `GEMINI_HOST` | Google's API | Pointing at a stub in tests |
+
+If a reading fails with *"No model called …"*, your key cannot use that model —
+list what it can with:
+
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=$KEY" \
+  | grep -o '"name": "models/[^"]*"'
+```
+
+and set `GEMINI_MODEL` to one of them.
+
+Usage is capped at 40 readings per person per day with a few seconds between
+each, so a stuck client cannot burn the shared free quota.
+
+---
+
 ## Notifications — yes, with one condition
 
 **Yes, this can send notifications by itself**, including on iPhone. The
@@ -266,6 +325,19 @@ Tests need the dev server running in another terminal:
 npm run test:api     # crypto, auth, seat limits, journal separation
 npm run test:flows   # the UI: autosave, passphrase change, offline capture
 npm run shots        # screenshots on an iPhone viewport → ./screenshots
+```
+
+The companion tests need a stub standing in for Google, so add these to
+`.dev.vars` and start it alongside the dev server:
+
+```
+GEMINI_API_KEY=stub-key
+GEMINI_HOST=http://127.0.0.1:8788
+```
+
+```bash
+npm run stub:gemini   # in a third terminal
+npm run test:ai       # relay, failure branches, budget, nothing stored
 ```
 
 `test:api` checks the claims above rather than trusting them — it dumps the

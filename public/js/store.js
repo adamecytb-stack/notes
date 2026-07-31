@@ -18,6 +18,7 @@ import {
   randomHex,
 } from './crypto.js';
 import { idbGet, idbGetAll, idbPut, idbDel, idbClear } from './idb.js';
+import { normalise, emptyEntry } from './dream.js';
 
 const listeners = new Set();
 
@@ -119,26 +120,26 @@ export async function signOut() {
 async function decryptRow(row) {
   try {
     const payload = await decryptEntry(state.vaultKey, row.id, row.iv, row.ciphertext);
+    // normalise() fills in anything a v1 entry predates, so old dreams keep
+    // rendering as the model grows.
     return {
+      ...normalise(payload),
       id: row.id,
       dreamedAt: row.dreamedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       pending: !!row.pending,
-      title: payload.title || '',
-      body: payload.body || '',
     };
   } catch {
     // Wrong key, or a corrupted blob. Surface it rather than dropping it
     // silently, so it's obvious something is off.
     return {
+      ...emptyEntry(),
       id: row.id,
       dreamedAt: row.dreamedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       pending: !!row.pending,
-      title: '',
-      body: '',
       undecryptable: true,
     };
   }
@@ -231,11 +232,18 @@ async function flushPending() {
 
 /* ------------------------------------------------------------- mutations  */
 
-/** Saves immediately to disk, then pushes. Returns as soon as it's safe locally. */
-export async function saveEntry({ id, title, body, dreamedAt }) {
+/**
+ * Saves immediately to disk, then pushes. Returns as soon as it's safe locally.
+ *
+ * `payload` is the whole dream — everything in dream.js's model — and it is all
+ * encrypted together. Only `dreamedAt` stays in the clear, so the list can sort
+ * without decrypting.
+ */
+export async function saveEntry({ id, dreamedAt, ...payload }) {
   const entryId = id || crypto.randomUUID();
   const when = dreamedAt || Date.now();
-  const { iv, ciphertext } = await encryptEntry(state.vaultKey, entryId, { v: 1, title, body });
+  const dream = normalise(payload);
+  const { iv, ciphertext } = await encryptEntry(state.vaultKey, entryId, dream);
   const now = Date.now();
   const existing = await idbGet('entries', entryId);
 
@@ -252,13 +260,12 @@ export async function saveEntry({ id, title, body, dreamedAt }) {
 
   await idbPut('entries', entryId, row);
   state.entries.set(entryId, {
+    ...dream,
     id: entryId,
     dreamedAt: when,
     createdAt: row.createdAt,
     updatedAt: now,
     pending: true,
-    title,
-    body,
   });
   emit();
 
@@ -336,10 +343,9 @@ export function exportJson() {
     {
       exportedAt: new Date().toISOString(),
       username: state.username,
-      entries: sortedEntries().map((e) => ({
-        dreamedAt: new Date(e.dreamedAt).toISOString(),
-        title: e.title,
-        body: e.body,
+      entries: sortedEntries().map(({ id, createdAt, updatedAt, pending, ...dream }) => ({
+        ...dream,
+        dreamedAt: new Date(dream.dreamedAt).toISOString(),
       })),
     },
     null,

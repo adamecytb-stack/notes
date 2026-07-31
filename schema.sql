@@ -38,6 +38,16 @@ CREATE TABLE IF NOT EXISTS entries (
 CREATE INDEX IF NOT EXISTS idx_entries_user_dreamed ON entries(user_id, dreamed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_entries_user_updated ON entries(user_id, updated_at);
 
+-- Caps how much the AI can be called. The free Gemini tier allows roughly 15
+-- requests a minute and 1,500 a day across the whole key, so both people share
+-- one budget and a runaway client must not burn it.
+CREATE TABLE IF NOT EXISTS ai_usage (
+  user_id  TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  day      TEXT NOT NULL,               -- YYYY-MM-DD, UTC
+  count    INTEGER NOT NULL DEFAULT 0,
+  last_at  INTEGER NOT NULL DEFAULT 0   -- ms epoch, for the per-request gap
+);
+
 -- Login throttling. Keyed by username so a locked account cannot be bypassed
 -- by rotating source IPs.
 CREATE TABLE IF NOT EXISTS login_attempts (

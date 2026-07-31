@@ -42,8 +42,17 @@ import {
   bytesLabel,
 } from './ui.js';
 import { idbGetAll } from './idb.js';
+import {
+  hasConsented,
+  grantConsent,
+  revokeConsent,
+  buildPatternPrompt,
+  buildRoutinePrompt,
+  buildEntryPrompt,
+  ask,
+} from './companion.js';
 
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.2.0';
 
 /* ------------------------------------------------------------------ views */
 
@@ -151,6 +160,14 @@ function enterJournal() {
   history.replaceState({ view: 'journal' }, '');
   showView('journal', { push: false });
   renderJournal();
+  // Whether the companion can run at all is a server-side fact (is a Gemini
+  // key configured), so ask rather than assume.
+  api
+    .me()
+    .then((me) => {
+      aiAvailable = !!me.aiAvailable;
+    })
+    .catch(() => {});
 }
 
 /* =============================================================== JOURNAL */
@@ -333,9 +350,17 @@ async function commit({ silent = false } = {}) {
 $('#compose-save').addEventListener('click', async () => {
   clearTimeout(saveTimer);
   const hasContent = titleInput.value.trim() || bodyInput.value.trim();
+  const id = composing?.id;
   if (hasContent) await commit();
   closeCompose();
-  if (hasContent) toast('Kept');
+  if (!hasContent) return;
+
+  if (prefs.aiAfterEntry && hasConsented() && aiAvailable) {
+    const entry = state.entries.get(id) || sortedEntries()[0];
+    if (entry) showReading('On this dream', (all) => buildEntryPrompt(entry, all));
+  } else {
+    toast('Kept');
+  }
 });
 
 $('#compose-cancel').addEventListener('click', async () => {
@@ -417,6 +442,8 @@ function refreshSettings() {
   $('#notif-time').value = prefs.notifyTime;
   $('#notif-time-row').classList.toggle('hidden', !prefs.notify);
   updateNotifyHint();
+
+  refreshCompanion();
 
   $('#about-note').textContent = `Nocturne ${APP_VERSION} · Entries are encrypted with AES-GCM on this device. The server stores only ciphertext and cannot read them.`;
 
@@ -548,6 +575,143 @@ function openPassphraseDialog() {
     ],
   });
 }
+
+/* ------------------------------------------------------- dream companion  */
+
+let aiAvailable = false;
+
+function refreshCompanion() {
+  const on = hasConsented();
+  $('#set-ai').setAttribute('aria-pressed', String(on));
+  $('#set-ai-auto').setAttribute('aria-pressed', String(!!prefs.aiAfterEntry));
+
+  const hint = $('#ai-hint');
+  if (!aiAvailable) {
+    hint.textContent = 'No Gemini key is set on the server yet, so this cannot run.';
+  } else if (on) {
+    hint.textContent =
+      'On. Dream text is decrypted here and sent to Google Gemini when you ask for a reading.';
+  } else {
+    hint.textContent = 'Off. Nothing is sent anywhere until you turn this on.';
+  }
+
+  for (const id of ['#ai-patterns', '#ai-routine']) {
+    $(id).classList.toggle('is-muted', !on || !aiAvailable);
+  }
+  $('#set-ai-auto').closest('.row').classList.toggle('is-muted', !on || !aiAvailable);
+}
+
+/**
+ * The consent gate. Everything else in this app is built so the server cannot
+ * read a dream; turning this on is the one place that stops being true, so it
+ * says so in as many words rather than burying it.
+ */
+function askConsent() {
+  return new Promise((resolve) => {
+    const body = el('div', 'stack');
+    const points = [
+      'Your dreams are decrypted on this phone and sent to Google Gemini to be read.',
+      'They pass through your own server on the way. Everywhere else in this app, the server only ever sees ciphertext.',
+      'On Gemini’s free tier, Google may use what you send to improve its products. Enabling billing on the key stops that.',
+      'Nothing is sent until you ask for a reading, and nothing is stored by the companion.',
+    ];
+    for (const p of points) {
+      const row = el('p', 'note');
+      row.textContent = `· ${p}`;
+      body.appendChild(row);
+    }
+
+    openModal({
+      title: 'Before it reads anything',
+      body: 'This is the only feature that sends your dreams off this phone. Read this properly.',
+      slot: body,
+      dismissable: false,
+      actions: [
+        {
+          label: 'I understand — turn it on',
+          kind: 'btn--primary',
+          onClick: () => {
+            closeModal();
+            resolve(true);
+          },
+        },
+        {
+          label: 'No thanks',
+          kind: 'btn--ghost',
+          onClick: () => {
+            closeModal();
+            resolve(false);
+          },
+        },
+      ],
+    });
+  });
+}
+
+$('#set-ai').addEventListener('click', async (e) => {
+  if (e.currentTarget.getAttribute('aria-pressed') === 'true') {
+    revokeConsent();
+    setPref('aiAfterEntry', false);
+    refreshCompanion();
+    return;
+  }
+  if (!aiAvailable) {
+    toast('No Gemini key is set on the server');
+    return;
+  }
+  if (await askConsent()) grantConsent();
+  refreshCompanion();
+});
+
+$('#set-ai-auto').addEventListener('click', (e) => {
+  if (!hasConsented()) {
+    toast('Turn the companion on first');
+    return;
+  }
+  setPref('aiAfterEntry', e.currentTarget.getAttribute('aria-pressed') !== 'true');
+  refreshCompanion();
+});
+
+/** Opens the reading panel, then fills it in when the answer arrives. */
+async function showReading(title, buildPrompt) {
+  if (!hasConsented() || !aiAvailable) {
+    toast(aiAvailable ? 'Turn the companion on first' : 'No Gemini key is set on the server');
+    return;
+  }
+
+  const entries = sortedEntries();
+  if (!entries.length) {
+    toast('Write a dream down first');
+    return;
+  }
+
+  const slot = el('div', 'reading');
+  slot.appendChild(el('div', 'spinner'));
+  openModal({
+    title,
+    slot,
+    actions: [{ label: 'Close', kind: 'btn--ghost', onClick: closeModal }],
+  });
+
+  try {
+    const { text } = await ask(buildPrompt(entries));
+    slot.replaceChildren();
+    // Plain paragraphs, set as text — never innerHTML with model output.
+    for (const para of text.split(/\n{2,}/)) {
+      if (para.trim()) slot.appendChild(el('p', 'reading__p', para.trim()));
+    }
+  } catch (err) {
+    slot.replaceChildren(el('p', 'error', err.message || 'That did not work.'));
+  }
+}
+
+$('#ai-patterns').addEventListener('click', () =>
+  showReading('What I see in your dreams', buildPatternPrompt),
+);
+
+$('#ai-routine').addEventListener('click', () =>
+  showReading('Your sleep timing', buildRoutinePrompt),
+);
 
 /* --------------------------------------------------------- notifications  */
 

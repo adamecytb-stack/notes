@@ -11,6 +11,8 @@
     "seed": "node test/seed.mjs",
     "test:api": "node test/api.test.mjs",
     "test:flows": "node test/flows.test.mjs",
+    "test:ai": "node test/ai.test.mjs",
+    "stub:gemini": "node test/gemini-stub.mjs",
     "shots": "node test/screenshots.mjs",
     "icons": "python3 scripts/make-icons.py"
   },

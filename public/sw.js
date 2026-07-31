@@ -6,7 +6,7 @@
  * IndexedDB and are reconciled by store.js.
  */
 
-const CACHE = 'nocturne-v2';
+const CACHE = 'nocturne-v3';
 
 /**
  * Note "/" rather than "/index.html": Cloudflare's asset server 307-redirects
@@ -17,7 +17,9 @@ const SHELL = [
   '/css/app.css',
   '/js/app.js',
   '/js/api.js',
+  '/js/companion.js',
   '/js/crypto.js',
+  '/js/dream.js',
   '/js/idb.js',
   '/js/settings.js',
   '/js/store.js',

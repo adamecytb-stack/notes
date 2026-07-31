@@ -42,4 +42,7 @@ export const api = {
   deleteEntry: (id) => request('DELETE', `/api/entries/${id}`),
   rekey: (data) => request('POST', '/api/entries/rekey', data),
   deleteAccount: () => request('DELETE', '/api/account'),
+
+  /** The only call that carries dream text in the clear. */
+  ai: (prompt) => request('POST', '/api/ai', { prompt }),
 };

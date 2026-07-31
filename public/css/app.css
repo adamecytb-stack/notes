@@ -1100,6 +1100,43 @@ button.row:active {
   margin-top: 1.5rem;
 }
 
+/* --------------------------------------------------------- the companion  */
+
+/* Rows that need the companion switched on before they do anything. */
+.is-muted {
+  opacity: 0.42;
+}
+
+.reading {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+  min-height: 4rem;
+  place-items: start;
+}
+
+.reading > .spinner {
+  justify-self: center;
+  margin: 1.25rem 0;
+  color: var(--ember);
+}
+
+.reading__p {
+  font-size: 1rem;
+  line-height: 1.62;
+  color: var(--vellum);
+  font-variation-settings: 'opsz' 14, 'wght' 350, 'SOFT' 0, 'WONK' 1;
+}
+
+.reading__p:first-child::first-letter {
+  font-variation-settings: 'opsz' 96, 'wght' 400, 'SOFT' 60, 'WONK' 1;
+  font-size: 2.4em;
+  line-height: 0.85;
+  float: left;
+  margin: 0.1em 0.09em 0 0;
+  color: var(--ember);
+}
+
 /* ================================================================= TOAST  */
 
 .toast {
