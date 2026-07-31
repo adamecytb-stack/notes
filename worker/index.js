@@ -116,6 +116,36 @@ function isTimestamp(n) {
   return Number.isInteger(n) && n > 0 && n < 4102444800000; // < year 2100
 }
 
+/* --------------------------------------------------------------- verifier */
+
+const VERIFIER_PREFIX = 'sha256$';
+
+/**
+ * Turns an auth proof into the value we store.
+ *
+ * Deliberately fast, and that is not a shortcut. All the expensive stretching
+ * already happened on the phone: what arrives here is a 256-bit HKDF output,
+ * not a human password. A slow KDF exists to make guessing a low-entropy
+ * secret costly, and there is no low-entropy guess space here — brute-forcing
+ * a 256-bit value is infeasible no matter how cheap each attempt is. It is the
+ * same reasoning that lets session tokens be stored as a plain SHA-256.
+ *
+ * It also has to be fast: 120k PBKDF2 rounds cost ~100ms of CPU, and a Worker
+ * on the free plan is killed at 10ms, which made every login fail.
+ */
+async function deriveVerifier(authProof, salt) {
+  return VERIFIER_PREFIX + (await sha256Hex(`${salt}:${authProof}`));
+}
+
+/** Accepts the current scheme, and the original PBKDF2 one for old rows. */
+async function verifierMatches(authProof, salt, stored) {
+  if (typeof stored !== 'string') return false;
+  if (stored.startsWith(VERIFIER_PREFIX)) {
+    return timingSafeEqual(await deriveVerifier(authProof, salt), stored);
+  }
+  return timingSafeEqual(await pbkdf2Hex(authProof, salt, PBKDF2_VERIFIER_ROUNDS), stored);
+}
+
 /* --------------------------------------------------------------- sessions */
 
 function sessionCookie(token, maxAgeSeconds) {
@@ -280,7 +310,7 @@ async function handleRegister(request, env) {
   if (existing) return bad('That name is taken', 409);
 
   const verifierSalt = randomHex(16);
-  const verifier = await pbkdf2Hex(body.authProof, verifierSalt, PBKDF2_VERIFIER_ROUNDS);
+  const verifier = await deriveVerifier(body.authProof, verifierSalt);
   const id = newId();
 
   await env.DB.prepare(
@@ -319,12 +349,13 @@ async function handleLogin(request, env) {
     .bind(username)
     .first();
 
-  // Always do the KDF work, even for unknown users, so response time doesn't
-  // reveal whether the account exists.
+  // Hash either way, even for unknown users, so response time doesn't reveal
+  // whether the account exists.
   const salt = user?.verifier_salt ?? (await hmacHex(env.SALT_PEPPER || 'x', `vs:${username}`)).slice(0, 32);
-  const candidate = await pbkdf2Hex(body.authProof, salt, PBKDF2_VERIFIER_ROUNDS);
+  const stored = user?.verifier ?? (await deriveVerifier('no-such-account', salt));
+  const ok = await verifierMatches(body.authProof, salt, stored);
 
-  if (!user || !timingSafeEqual(candidate, user.verifier)) {
+  if (!user || !ok) {
     await recordFailure(env, username);
     return bad('Incorrect name or passphrase', 401);
   }
@@ -448,8 +479,7 @@ async function handleRekey(request, env, session) {
     .first();
   if (!user) return bad('No such account', 404);
 
-  const candidate = await pbkdf2Hex(body.currentProof, user.verifier_salt, PBKDF2_VERIFIER_ROUNDS);
-  if (!timingSafeEqual(candidate, user.verifier)) {
+  if (!(await verifierMatches(body.currentProof, user.verifier_salt, user.verifier))) {
     return bad('Current passphrase is not right', 403);
   }
 
@@ -461,7 +491,7 @@ async function handleRekey(request, env, session) {
 
   const now = Date.now();
   const verifierSalt = randomHex(16);
-  const verifier = await pbkdf2Hex(body.authProof, verifierSalt, PBKDF2_VERIFIER_ROUNDS);
+  const verifier = await deriveVerifier(body.authProof, verifierSalt);
 
   const statements = body.entries.map((e) =>
     env.DB.prepare(

@@ -144,6 +144,24 @@ const call = client.call.bind(client);
   r = await call('DELETE', `/api/entries/${entryId}`);
   check("second user cannot delete the first user's entry", r.status === 404);
 
+  console.log('\n— CPU budget —');
+  // A Worker on the free plan is killed at 10ms CPU per request. Server-side
+  // key stretching once blew that by 10x and made every login fail with a
+  // generic 500, so the auth paths are timed here to stop it coming back.
+  // Wall-clock is a loose proxy for CPU, hence the generous ceiling.
+  r = await call('POST', '/api/auth/salt', { username });
+  const freshProof = await deriveIdentity('correct-horse-battery', r.json.salt);
+  const timed = async (label, fn) => {
+    const t0 = performance.now();
+    await fn();
+    const ms = performance.now() - t0;
+    check(`${label} stays well inside the CPU budget`, ms < 250, `(${ms.toFixed(0)}ms round trip)`);
+  };
+  await timed('login', () =>
+    call('POST', '/api/auth/login', { username, authProof: freshProof.authProof }));
+  await timed('rejected login', () =>
+    call('POST', '/api/auth/login', { username: 'ghost', authProof: 'a'.repeat(64) }));
+
   console.log('\n— headers —');
   r = await call('GET', '/api/status');
   const csp = r.headers.get('content-security-policy') || '';
