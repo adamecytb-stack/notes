@@ -11,3 +11,6 @@
 ALTER TABLE users ADD COLUMN public_key TEXT;
 ALTER TABLE users ADD COLUMN wrapped_private TEXT;
 ALTER TABLE users ADD COLUMN wrapped_iv TEXT;
+
+ALTER TABLE push_subscriptions ADD COLUMN bedtime_time TEXT NOT NULL DEFAULT '';
+ALTER TABLE push_subscriptions ADD COLUMN wbtb_time TEXT NOT NULL DEFAULT '';

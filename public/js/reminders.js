@@ -11,10 +11,63 @@
  */
 
 import { api } from './api.js';
+import { idbPut } from './idb.js';
 import { prefs, setPref } from './settings.js';
 
 /** Spread through the day rather than clustered, so they stay surprising. */
 export const DEFAULT_CHECKS = ['10:30', '13:00', '16:00', '19:30'];
+
+/** How long before bedtime the intention nudge lands. */
+const BEDTIME_LEAD_MIN = 20;
+
+/**
+ * Wake-back-to-bed goes five hours in: deep enough to have cleared the
+ * slow-wave part of the night and land among the long REM periods, which is
+ * where nearly every lucid dream happens.
+ */
+const WBTB_OFFSET_MIN = 300;
+
+const toMinutes = (t) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+const toClock = (mins) => {
+  const w = ((mins % 1440) + 1440) % 1440;
+  return `${String(Math.floor(w / 60)).padStart(2, '0')}:${String(w % 60).padStart(2, '0')}`;
+};
+
+/** When the "say your intention" nudge should land, or '' if it is off. */
+export function bedtimeNudgeAt() {
+  const at = toMinutes(prefs.bedtime);
+  return prefs.bedtimeNudge && at !== null ? toClock(at - BEDTIME_LEAD_MIN) : '';
+}
+
+/** Where wake-back-to-bed lands by default, given a bedtime. */
+export function suggestedWbtb(bedtime = prefs.bedtime) {
+  const at = toMinutes(bedtime);
+  return at === null ? '' : toClock(at + WBTB_OFFSET_MIN);
+}
+
+/** The alarm time, or '' if wake-back-to-bed is switched off. */
+export function wbtbAt() {
+  if (!prefs.wbtb) return '';
+  return toMinutes(prefs.wbtbTime) !== null ? prefs.wbtbTime : suggestedWbtb();
+}
+
+/**
+ * The times the service worker needs to tell one nudge from another. Times
+ * only — a push carries no payload, and this is what lets the phone work out
+ * what it is for without the push service ever being told.
+ */
+function scheduleForWorker() {
+  return {
+    morning: prefs.notify ? prefs.notifyTime : '',
+    checks: prefs.checkTimes || DEFAULT_CHECKS,
+    bedtime: bedtimeNudgeAt(),
+    wbtb: wbtbAt(),
+  };
+}
 
 export const push = {
   available: false,
@@ -77,27 +130,31 @@ export async function enableReminders() {
       applicationServerKey: urlBase64ToUint8Array(push.publicKey),
     }));
 
-  await api.pushSubscribe({
-    endpoint: sub.endpoint,
-    // The server matches on local wall-clock time, so it needs the zone, not
-    // an offset — that way the times hold across daylight saving.
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-    morningTime: prefs.notify ? prefs.notifyTime : '',
-    checkTimes: (prefs.checkTimes || DEFAULT_CHECKS).join(','),
-  });
-
   setPref('notify', true);
   push.subscribed = true;
+  await pushSchedule(sub.endpoint);
 }
 
 export async function updateSchedule() {
   const sub = await currentSubscription();
   if (!sub) return;
+  await pushSchedule(sub.endpoint);
+}
+
+async function pushSchedule(endpoint) {
+  const schedule = scheduleForWorker();
+  // Written before the network call, so the worker can still name a nudge
+  // even if the round trip fails.
+  await idbPut('meta', 'schedule', schedule);
   await api.pushSubscribe({
-    endpoint: sub.endpoint,
+    endpoint,
+    // The server matches on local wall-clock time, so it needs the zone, not
+    // an offset — that way the times hold across daylight saving.
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-    morningTime: prefs.notify ? prefs.notifyTime : '',
-    checkTimes: (prefs.checkTimes || DEFAULT_CHECKS).join(','),
+    morningTime: schedule.morning,
+    checkTimes: schedule.checks.join(','),
+    bedtimeTime: schedule.bedtime,
+    wbtbTime: schedule.wbtb,
   });
 }
 

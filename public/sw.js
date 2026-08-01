@@ -140,41 +140,152 @@ self.addEventListener('fetch', (event) => {
 
 /**
  * Reminders arrive as a bare push with no payload — the wording lives here
- * rather than crossing the wire, so the push service learns nothing.
+ * rather than crossing the wire, so the push service learns nothing. Not even
+ * which kind of nudge it was: that is worked out on the phone, below.
  *
- * Before roughly 10am it reads as "write down what you remember"; the rest of
- * the day it is a reality check, which is the habit that actually produces
- * lucid dreams. The prompts vary because a notification you stop reading is a
- * notification that stops working.
+ * The prompts vary within each kind because a notification you stop reading is
+ * a notification that stops working.
  */
-const CHECKS = [
-  'Are you dreaming right now? Look at your hands and count the fingers.',
-  'Reality check. Read some text, look away, read it again — does it hold still?',
-  'Is this a dream? Pinch your nose closed and try to breathe in.',
-  'Check: how did you get here? Can you remember the last hour clearly?',
-  'Look at a clock, look away, look back. Reality check.',
-];
-
-const MORNINGS = [
-  'Anything you remember? Stay still and let it come back first.',
-  'What did you dream? Write it down before you move.',
-  'Even a fragment counts. What is left of last night?',
-];
+const NUDGES = {
+  bedtime: {
+    title: 'Before you sleep',
+    bodies: [
+      'Say it until you mean it: the next time I am dreaming, I will realise I am dreaming.',
+      'Repeat your intention. Picture your dream sign, and picture catching it.',
+      'One minute of intention now beats an hour of trying later. Tap to run through it.',
+    ],
+    url: '/?tonight=1',
+  },
+  wbtb: {
+    title: 'Wake back to bed',
+    bodies: [
+      'Stay up about twenty minutes, then go back with the intention. This is the window.',
+      'You are in the best REM of the night. Get up, stay dim and calm, then go back in.',
+      'Awake on purpose. Read one of your lucid dreams, then go back and expect another.',
+    ],
+    url: '/?wbtb=1',
+  },
+  morning: {
+    title: 'Nocturne',
+    bodies: [
+      'Anything you remember? Stay still and let it come back first.',
+      'What did you dream? Write it down before you move.',
+      'Even a fragment counts. What is left of last night?',
+    ],
+    url: '/?capture=1',
+  },
+  check: {
+    title: 'Reality check',
+    bodies: [
+      'Are you dreaming right now? Look at your hands and count the fingers.',
+      'Reality check. Read some text, look away, read it again — does it hold still?',
+      'Is this a dream? Pinch your nose closed and try to breathe in.',
+      'Check: how did you get here? Can you remember the last hour clearly?',
+      'Look at a clock, look away, look back. Reality check.',
+    ],
+    url: '/?check=1',
+  },
+};
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
+/**
+ * The times the app last registered, read straight out of IndexedDB. Times
+ * only — never a dream, never a dream sign. Those stay encrypted and are read
+ * by the app itself once the notification is tapped.
+ */
+function readSchedule() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v) => {
+      if (!settled) {
+        settled = true;
+        resolve(v);
+      }
+    };
+    try {
+      const req = indexedDB.open('dream-journal', 1);
+      req.onerror = () => done(null);
+      req.onblocked = () => done(null);
+      // Opening at the app's own version must never trigger an upgrade from
+      // here — if the store is missing, give up rather than create half a DB.
+      req.onupgradeneeded = () => done(null);
+      req.onsuccess = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('meta')) return done(null);
+        const get = db.transaction('meta', 'readonly').objectStore('meta').get('schedule');
+        get.onsuccess = () => done(get.result || null);
+        get.onerror = () => done(null);
+      };
+    } catch {
+      done(null);
+    }
+    setTimeout(() => done(null), 1500);
+  });
+}
+
+const toMinutes = (t) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/**
+ * Which nudge is this? The server sends an empty push, so the only clue is the
+ * clock — but the phone knows the times it asked for, so it can match rather
+ * than guess. Minutes wrap at midnight, otherwise a bedtime of 23:40 would
+ * never match a push that lands at 00:02.
+ */
+function nudgeKind(schedule, now = new Date()) {
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const gap = (a, b) => {
+    const d = Math.abs(a - b);
+    return Math.min(d, 1440 - d);
+  };
+
+  if (schedule) {
+    const slots = [
+      ['wbtb', schedule.wbtb],
+      ['bedtime', schedule.bedtime],
+      ['morning', schedule.morning],
+      ...(schedule.checks || []).map((t) => ['check', t]),
+    ];
+    let best = null;
+    for (const [kind, time] of slots) {
+      const at = toMinutes(time);
+      if (at === null) continue;
+      const d = gap(mins, at);
+      // The cron runs on a 15-minute window, so a nudge can legitimately land
+      // that late. Beyond half an hour it is not this slot.
+      if (d <= 30 && (!best || d < best.d)) best = { kind, d };
+    }
+    if (best) return best.kind;
+  }
+
+  // No schedule stored, or nothing close enough: fall back to the clock alone.
+  const hour = now.getHours();
+  if (hour >= 2 && hour < 5) return 'wbtb';
+  if (hour < 10) return 'morning';
+  if (hour >= 21) return 'bedtime';
+  return 'check';
+}
+
 self.addEventListener('push', (event) => {
-  const hour = new Date().getHours();
-  const morning = hour < 10;
   event.waitUntil(
-    self.registration.showNotification(morning ? 'Nocturne' : 'Reality check', {
-      body: morning ? pick(MORNINGS) : pick(CHECKS),
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: 'nocturne-nudge',
-      renotify: true,
-      data: { url: morning ? '/?capture=1' : '/' },
-    }),
+    (async () => {
+      const kind = nudgeKind(await readSchedule());
+      const nudge = NUDGES[kind] || NUDGES.check;
+      await self.registration.showNotification(nudge.title, {
+        body: pick(nudge.bodies),
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: 'nocturne-nudge',
+        renotify: true,
+        // Waking someone is the entire point of the WBTB alarm, so it stays
+        // on screen until it is dealt with.
+        requireInteraction: kind === 'wbtb',
+        data: { url: nudge.url, kind },
+      });
+    })(),
   );
 });
 
@@ -184,7 +295,12 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) return client.focus();
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          // Already open, so the URL will not change on its own — tell the app
+          // which nudge was tapped so it can show the right thing.
+          client.postMessage({ type: 'NUDGE', kind: event.notification.data?.kind || 'check' });
+          return client.focus();
+        }
       }
       return self.clients.openWindow(target);
     }),

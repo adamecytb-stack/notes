@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   timezone     TEXT NOT NULL DEFAULT 'UTC',
   morning_time TEXT NOT NULL DEFAULT '',   -- 'HH:MM' local, '' = off
   check_times  TEXT NOT NULL DEFAULT '',   -- comma-separated 'HH:MM' local
+  bedtime_time TEXT NOT NULL DEFAULT '',   -- 'HH:MM' local — the intention nudge
+  wbtb_time    TEXT NOT NULL DEFAULT '',   -- 'HH:MM' local — the wake-back-to-bed alarm
   last_fired   TEXT NOT NULL DEFAULT '',   -- 'YYYY-MM-DD HH:MM' of the last slot
   created_at   INTEGER NOT NULL
 );

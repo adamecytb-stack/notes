@@ -766,17 +766,22 @@ async function handleSubscribe(request, env, session) {
     .filter(Boolean)
     .slice(0, 8)
     .join(',');
+  const bedtime = clean(body.bedtimeTime || '');
+  const wbtb = clean(body.wbtbTime || '');
   const tz = typeof body.timezone === 'string' && body.timezone.length < 64 ? body.timezone : 'UTC';
 
   await env.DB.prepare(
-    `INSERT INTO push_subscriptions (id, user_id, endpoint, timezone, morning_time, check_times, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO push_subscriptions
+       (id, user_id, endpoint, timezone, morning_time, check_times, bedtime_time, wbtb_time, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(endpoint) DO UPDATE SET
        timezone = excluded.timezone,
        morning_time = excluded.morning_time,
-       check_times = excluded.check_times`,
+       check_times = excluded.check_times,
+       bedtime_time = excluded.bedtime_time,
+       wbtb_time = excluded.wbtb_time`,
   )
-    .bind(newId(), session.userId, body.endpoint, tz, morning, checks, Date.now())
+    .bind(newId(), session.userId, body.endpoint, tz, morning, checks, bedtime, wbtb, Date.now())
     .run();
 
   return json({ ok: true });
@@ -847,8 +852,19 @@ async function runReminders(env, now = new Date()) {
     const local = localSlot(sub.timezone, now);
     if (!local) continue;
 
-    const wanted = [sub.morning_time, ...String(sub.check_times).split(',')]
-      .map((t) => t.trim())
+    /*
+     * Order is priority, because at most one nudge goes out per run and a
+     * collision has to resolve somehow. The wake-back-to-bed alarm comes
+     * first: it is the one that is useless if it arrives late, and the one
+     * someone explicitly asked to be woken by.
+     */
+    const wanted = [
+      sub.wbtb_time,
+      sub.bedtime_time,
+      sub.morning_time,
+      ...String(sub.check_times).split(','),
+    ]
+      .map((t) => String(t || '').trim())
       .filter((t) => /^\d{2}:\d{2}$/.test(t));
 
     for (const time of wanted) {

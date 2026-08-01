@@ -19,6 +19,17 @@ const DEFAULTS = {
   checkTimes: ['10:30', '13:00', '16:00', '19:30'],
   // Lucid dreams are the ones worth comparing, so they share by default.
   shareLucid: true,
+
+  // When you mean to be asleep. Everything at night is worked out from this.
+  bedtime: '23:00',
+  // The intention nudge, twenty minutes before bedtime.
+  bedtimeNudge: false,
+  // Wake-back-to-bed: off by default, because being woken at 4am is something
+  // you should have to ask for. '' means "five hours after bedtime".
+  wbtb: false,
+  wbtbTime: '',
+  // Reality checks actually performed, { 'YYYY-MM-DD': count }. Local only.
+  checkLog: {},
 };
 
 export const prefs = load();
