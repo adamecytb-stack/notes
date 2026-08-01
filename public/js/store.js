@@ -16,6 +16,8 @@ import {
   recallKey,
   forgetKey,
   randomHex,
+  wrapPrivateKey,
+  unwrapPrivateKey,
 } from './crypto.js';
 import { idbGet, idbGetAll, idbPut, idbDel, idbClear } from './idb.js';
 import { normalise, emptyEntry } from './dream.js';
@@ -301,6 +303,25 @@ export async function removeEntry(id) {
 /* ------------------------------------------------- passphrase replacement  */
 
 /**
+ * Re-wraps the sharing private key under a new vault key.
+ *
+ * Returns null when there is nothing to re-wrap — no keypair yet, or this
+ * phone cannot open the one on record. Neither is fatal: sharing.js repairs a
+ * key it cannot open by rotating it.
+ */
+async function rewrapShareKey(nextVaultKey) {
+  try {
+    const keys = await api.getKeys();
+    if (!keys.wrappedPrivate || !keys.wrappedIv) return null;
+    const privateKey = await unwrapPrivateKey(state.vaultKey, keys.wrappedPrivate, keys.wrappedIv);
+    const wrapped = await wrapPrivateKey(nextVaultKey, privateKey);
+    return { wrappedPrivate: wrapped.wrapped, wrappedIv: wrapped.iv };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Re-encrypts everything under a new passphrase. The old key decrypts, the new
  * key re-encrypts, and the swap is sent to the server in one batch.
  */
@@ -320,11 +341,20 @@ export async function changePassphrase(currentPassphrase, nextPassphrase, onProg
     reEncrypted.push({ id: row.id, iv: blob.iv, ciphertext: blob.ciphertext, dreamedAt: row.dreamedAt });
   }
 
+  /*
+   * The sharing key is wrapped with the vault key too, so it has to travel
+   * with the entries. Forgetting it here is what used to kill sharing
+   * permanently the first time anyone changed their passphrase — the stored
+   * copy stayed encrypted to a key that no longer existed.
+   */
+  const rewrapped = await rewrapShareKey(next.vaultKey);
+
   await api.rekey({
     currentProof: current.authProof,
     authProof: next.authProof,
     kdfSalt: nextSalt,
     entries: reEncrypted,
+    ...(rewrapped || {}),
   });
 
   state.vaultKey = next.vaultKey;

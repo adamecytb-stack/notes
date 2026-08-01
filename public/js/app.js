@@ -65,6 +65,7 @@ import {
   unshare as unshareEntry,
   refreshInbox,
   forgetSharing,
+  reseal,
 } from './sharing.js';
 import {
   push,
@@ -208,10 +209,31 @@ function enterJournal() {
       // Sharing needs the vault key, so it can only start once unlocked.
       if (state.vaultKey && (await initSharing(state.vaultKey))) {
         await refreshInbox().catch(() => {});
+        await healSharing();
         renderJournal();
       }
     })
     .catch(() => {});
+}
+
+/**
+ * Puts sharing back together after either side has had to replace its keypair.
+ *
+ * Both repairs are silent and automatic on purpose: the failure they undo was
+ * never the user's doing, and asking someone to understand elliptic-curve key
+ * rotation at 3am is not a reasonable thing to do.
+ */
+async function healSharing() {
+  if (sharing.peerRotated) {
+    const resealed = await reseal((id) => state.entries.get(id)).catch(() => 0);
+    sharing.peerRotated = false;
+    await refreshInbox().catch(() => {});
+    if (resealed) toast(`Re-shared ${resealed} dream${resealed === 1 ? '' : 's'} with them`);
+  }
+  if (sharing.repaired) {
+    sharing.repaired = false;
+    toast('Sharing has been reconnected');
+  }
 }
 
 /* =============================================================== JOURNAL */
@@ -1479,7 +1501,11 @@ $('#notif-test').addEventListener('click', async () => {
 function refreshSharing() {
   $('#set-share').setAttribute('aria-pressed', String(prefs.shareLucid !== false));
   const hint = $('#share-hint');
-  if (!sharing.peerName) {
+  if (sharing.error) {
+    // Never silent again: this used to fail invisibly and look like the other
+    // person had simply stopped writing.
+    hint.textContent = `Sharing is not working on this phone — ${sharing.error}. Tap "Reconnect sharing" below.`;
+  } else if (!sharing.peerName) {
     hint.textContent = 'Nobody else has an account yet.';
   } else if (!canShare()) {
     hint.textContent = `${sharing.peerName} needs to open the app once before sharing can work.`;
@@ -1487,7 +1513,20 @@ function refreshSharing() {
     hint.textContent = `Lucid dreams go to ${sharing.peerName} automatically. Ordinary ones stay private.`;
   }
   $('#share-count').textContent = sharing.inbox.length ? String(sharing.inbox.length) : '—';
+  $('#share-repair').classList.toggle('hidden', !sharing.error && canShare());
 }
+
+/** The manual version of the automatic repair, for when it is still stuck. */
+$('#share-repair').addEventListener('click', async () => {
+  if (!state.vaultKey) return;
+  toast('Reconnecting…');
+  await initSharing(state.vaultKey);
+  await refreshInbox().catch(() => {});
+  await healSharing();
+  renderJournal();
+  refreshSettings();
+  toast(canShare() ? 'Sharing is working again' : sharing.error || 'Still not connected');
+});
 
 $('#set-share').addEventListener('click', (e) => {
   setPref('shareLucid', e.currentTarget.getAttribute('aria-pressed') !== 'true');

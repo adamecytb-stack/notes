@@ -44,7 +44,7 @@ async function setUpUser(username, passphrase) {
   });
   if (res.status !== 200) throw new Error(`keys ${username}: ${JSON.stringify(res.json)}`);
 
-  return { client, username, vaultKey: id.vaultKey, pair, publicKey: pub, wrapped };
+  return { client, username, identity: id, vaultKey: id.vaultKey, pair, publicKey: pub, wrapped };
 }
 
 (async () => {
@@ -151,6 +151,75 @@ async function setUpUser(username, passphrase) {
     wrappedIv: ada.wrapped.iv,
   });
   check('republishing a different public key is refused', r.status === 409, JSON.stringify(r.json));
+
+  /*
+   * The bug this guards against: the sharing private key is wrapped with the
+   * vault key, so changing a passphrase left it encrypted to a key that no
+   * longer existed. Sharing then died silently and permanently, in both
+   * directions, with the 409 above making it unrecoverable.
+   */
+  console.log('\n— a new passphrase must not strand the sharing key —');
+  await ada.client.call('PUT', `/api/shares/${entryId}`, {
+    ...(await sealShare(
+      ada.pair.privateKey,
+      await importPublicKey(grace.publicKey),
+      entryId,
+      DREAM,
+    )),
+    dreamedAt: Date.now(),
+  });
+
+  const nextSalt = randomHex(16);
+  const nextAda = await deriveIdentity('a-completely-different-passphrase', nextSalt);
+  const rewrapped = await wrapPrivateKey(nextAda.vaultKey, ada.pair.privateKey);
+
+  r = await ada.client.call('POST', '/api/entries/rekey', {
+    currentProof: ada.identity.authProof,
+    authProof: nextAda.authProof,
+    kdfSalt: nextSalt,
+    entries: [],
+    wrappedPrivate: rewrapped.wrapped,
+    wrappedIv: rewrapped.iv,
+  });
+  check('the rekey is accepted', r.status === 200, JSON.stringify(r.json));
+
+  r = await ada.client.call('GET', '/api/keys');
+  let reopened = null;
+  try {
+    reopened = await unwrapPrivateKey(nextAda.vaultKey, r.json.wrappedPrivate, r.json.wrappedIv);
+  } catch {
+    /* left null — the assertion below reports it */
+  }
+  check('the sharing key opens with the new passphrase', reopened !== null);
+  check('and the public half is unchanged, so their shares still address us',
+    r.json.publicKey === (await exportPublicKey(ada.pair.publicKey)));
+
+  r = await grace.client.call('GET', '/api/shares');
+  check('the dream she was sent still opens after his passphrase change',
+    (
+      await openShare(
+        grace.pair.privateKey,
+        await importPublicKey(ada.publicKey),
+        entryId,
+        r.json.inbox[0],
+      )
+    ).title === DREAM.title);
+
+  console.log('\n— a phone that cannot open its key can repair itself —');
+  const repairPair = await generateShareKeys();
+  const repairWrap = await wrapPrivateKey(nextAda.vaultKey, repairPair.privateKey);
+  r = await ada.client.call('POST', '/api/keys', {
+    publicKey: await exportPublicKey(repairPair.publicKey),
+    wrappedPrivate: repairWrap.wrapped,
+    wrappedIv: repairWrap.iv,
+    replace: true,
+  });
+  check('an explicit replacement is allowed', r.status === 200, JSON.stringify(r.json));
+  check('and is reported as a rotation', r.json.rotated === true);
+
+  r = await grace.client.call('GET', '/api/shares');
+  check('shares sealed to the replaced key are cleared, not left broken',
+    (r.json.inbox || []).length === 0, JSON.stringify(r.json.inbox));
 
   process.exit(report() ? 1 : 0);
 })();

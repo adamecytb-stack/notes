@@ -489,6 +489,18 @@ async function handleRekey(request, env, session) {
     if (err) return bad(err);
   }
 
+  /*
+   * The sharing private key is wrapped with the vault key, so a new passphrase
+   * makes the stored copy unopenable. It has to be re-wrapped in the same
+   * batch as the entries — leaving it behind is what silently killed sharing
+   * for good, with no way back short of rotating the whole keypair.
+   */
+  const rewrapping = body.wrappedPrivate !== undefined || body.wrappedIv !== undefined;
+  if (rewrapping) {
+    if (!isB64(body.wrappedPrivate, 4096)) return bad('Invalid wrapped key');
+    if (!isB64(body.wrappedIv, 32)) return bad('Invalid iv');
+  }
+
   const now = Date.now();
   const verifierSalt = randomHex(16);
   const verifier = await deriveVerifier(body.authProof, verifierSalt);
@@ -499,12 +511,21 @@ async function handleRekey(request, env, session) {
     ).bind(e.iv, e.ciphertext, now, e.id, session.userId),
   );
   statements.push(
-    env.DB.prepare('UPDATE users SET kdf_salt = ?, verifier = ?, verifier_salt = ? WHERE id = ?').bind(
-      body.kdfSalt,
-      verifier,
-      verifierSalt,
-      session.userId,
-    ),
+    rewrapping
+      ? env.DB.prepare(
+          `UPDATE users SET kdf_salt = ?, verifier = ?, verifier_salt = ?,
+             wrapped_private = ?, wrapped_iv = ? WHERE id = ?`,
+        ).bind(
+          body.kdfSalt,
+          verifier,
+          verifierSalt,
+          body.wrappedPrivate,
+          body.wrappedIv,
+          session.userId,
+        )
+      : env.DB.prepare(
+          'UPDATE users SET kdf_salt = ?, verifier = ?, verifier_salt = ? WHERE id = ?',
+        ).bind(body.kdfSalt, verifier, verifierSalt, session.userId),
   );
   // Every other session was established under the old passphrase.
   statements.push(
@@ -529,27 +550,47 @@ async function findPeer(env, userId) {
     .first();
 }
 
-/** Publishes this account's public key and stores the wrapped private half. */
+/**
+ * Publishes this account's public key and stores the wrapped private half.
+ *
+ * `replace: true` rotates the keypair. That is only ever sent when the client
+ * has found it genuinely cannot unwrap the private key it has — which used to
+ * be a dead end, because the old code refused every republish and left sharing
+ * broken with no way back. Rotating strands the shares wrapped to the old key,
+ * so those are cleared here and both sides re-seal from plaintext they still
+ * hold.
+ */
 async function handlePublishKeys(request, env, session) {
   const body = await readJson(request);
   if (!isB64(body.publicKey, 256)) return bad('Invalid public key');
   if (!isB64(body.wrappedPrivate, 4096)) return bad('Invalid wrapped key');
   if (!isB64(body.wrappedIv, 32)) return bad('Invalid iv');
 
-  // Republishing would strand every share already wrapped to the old key.
   const existing = await env.DB.prepare('SELECT public_key FROM users WHERE id = ?')
     .bind(session.userId)
     .first();
-  if (existing?.public_key && existing.public_key !== body.publicKey) {
+  const changing = existing?.public_key && existing.public_key !== body.publicKey;
+  if (changing && body.replace !== true) {
     return bad('This account already has sharing keys', 409);
   }
 
-  await env.DB.prepare(
-    'UPDATE users SET public_key = ?, wrapped_private = ?, wrapped_iv = ? WHERE id = ?',
-  )
-    .bind(body.publicKey, body.wrappedPrivate, body.wrappedIv, session.userId)
-    .run();
-  return json({ ok: true });
+  const statements = [
+    env.DB.prepare(
+      'UPDATE users SET public_key = ?, wrapped_private = ?, wrapped_iv = ? WHERE id = ?',
+    ).bind(body.publicKey, body.wrappedPrivate, body.wrappedIv, session.userId),
+  ];
+
+  if (changing) {
+    // Nothing sealed to the old key can be opened by anyone any more, on
+    // either side. Leaving it would show as a permanently broken dream.
+    statements.push(
+      env.DB.prepare('DELETE FROM shares WHERE owner_id = ?').bind(session.userId),
+      env.DB.prepare('DELETE FROM shares WHERE recipient_id = ?').bind(session.userId),
+    );
+  }
+
+  await env.DB.batch(statements);
+  return json({ ok: true, rotated: !!changing });
 }
 
 async function handleGetKeys(env, session) {
