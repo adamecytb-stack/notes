@@ -195,6 +195,18 @@
             <span id="offline-text">Offline — your dreams are saved here and will sync later.</span>
           </div>
 
+          <!-- The two things you can do right now, rather than after the fact. -->
+          <div class="acts">
+            <button class="act" type="button" id="do-check">
+              <span class="act__title">Reality check</span>
+              <span class="act__hint">Am I dreaming? Ask it properly.</span>
+            </button>
+            <button class="act" type="button" id="open-tonight-journal">
+              <span class="act__title">Before sleep</span>
+              <span class="act__hint">Your sign, your intention.</span>
+            </button>
+          </div>
+
           <div class="tabs" id="tabs">
             <button type="button" data-tab="mine" aria-pressed="true">Mine</button>
             <button type="button" data-tab="theirs" aria-pressed="false" id="tab-theirs">
@@ -253,6 +265,7 @@
             <div class="group">
               <p class="t-meta group__label" id="cal-label">This month</p>
               <div class="cal" id="cal"></div>
+              <p class="note" id="cal-note"></p>
               <div class="legend">
                 <span class="legend__item"><i class="dot dot--logged"></i> wrote something</span>
                 <span class="legend__item"><i class="dot dot--lucid"></i> lucid</span>
@@ -265,11 +278,71 @@
               <div class="bars" id="signs"></div>
             </div>
 
+            <div class="group" id="checks-group">
+              <p class="t-meta group__label">Reality checks</p>
+              <p class="note" id="checks-note"></p>
+              <div class="sparks" id="checks-spark"></div>
+            </div>
+
             <div class="group" id="cond-group">
               <p class="t-meta group__label">What lines up with going lucid</p>
               <p class="note" id="cond-note"></p>
               <div class="bars" id="conditions"></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================= TONIGHT ==== -->
+      <section class="screen" id="screen-tonight" aria-label="Tonight">
+        <div class="subhead">
+          <button class="back" type="button" id="tonight-back">
+            <svg width="8" height="14" aria-hidden="true"><use href="#i-back" /></svg>
+            Journal
+          </button>
+        </div>
+
+        <div class="scroll">
+          <div class="tonight">
+            <h1 class="t-screen" id="tonight-title">Before you sleep</h1>
+            <p class="tonight__lede" id="tonight-lede"></p>
+
+            <div class="wbtb hidden" id="wbtb-panel">
+              <p class="wbtb__clock" id="wbtb-clock">20:00</p>
+              <p class="wbtb__note" id="wbtb-note">
+                Stay up, stay dim. When this runs out, go back to bed expecting to notice.
+              </p>
+              <button class="btn btn--primary btn--wide" type="button" id="wbtb-go">
+                I am going back in
+              </button>
+            </div>
+
+            <div class="group">
+              <p class="t-meta group__label">Your dream sign</p>
+              <p class="tonight__sign" id="tonight-sign"></p>
+              <p class="note" id="tonight-sign-note"></p>
+            </div>
+
+            <div class="group">
+              <p class="t-meta group__label">Say it until you mean it</p>
+              <button class="mantra" type="button" id="mantra">
+                <span class="mantra__text" id="mantra-text"></span>
+                <span class="mantra__count" id="mantra-count">Tap each time you say it</span>
+              </button>
+              <div class="mantra__pips" id="mantra-pips"></div>
+            </div>
+
+            <div class="group" id="reenter-group">
+              <p class="t-meta group__label">Go back into this one</p>
+              <p class="note" id="reenter-note">
+                Replay it as you fall asleep — and this time, notice.
+              </p>
+              <article class="reenter" id="reenter"></article>
+            </div>
+
+            <button class="btn btn--primary btn--wide" type="button" id="tonight-done">
+              Good night
+            </button>
           </div>
         </div>
       </section>
@@ -423,6 +496,52 @@
                   <div class="chips" id="notif-checks"></div>
                   <p class="row__hint">Tap to turn each one off.</p>
                 </div>
+              </div>
+            </div>
+
+            <!-- The night itself -->
+            <div class="group">
+              <p class="t-meta group__label">Tonight</p>
+              <div class="group__body">
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Bedtime</p>
+                    <p class="row__hint">When you mean to be asleep. Everything below follows from it.</p>
+                  </div>
+                  <input class="row__value" type="time" id="set-bedtime" value="23:00" aria-label="Bedtime" />
+                </div>
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Remind me before bed</p>
+                    <p class="row__hint" id="bednudge-hint">
+                      Twenty minutes before, to repeat your intention.
+                    </p>
+                  </div>
+                  <button class="toggle" type="button" id="set-bednudge" aria-pressed="false" aria-label="Remind me before bed"></button>
+                </div>
+                <div class="row">
+                  <div class="row__main">
+                    <p class="row__title">Wake me for wake-back-to-bed</p>
+                    <p class="row__hint" id="wbtb-hint">
+                      The best odds there are. Wakes you in late REM, five hours in.
+                    </p>
+                  </div>
+                  <button class="toggle" type="button" id="set-wbtb" aria-pressed="false" aria-label="Wake me for wake-back-to-bed"></button>
+                </div>
+                <div class="row hidden" id="wbtb-time-row">
+                  <div class="row__main">
+                    <p class="row__title">Wake me at</p>
+                    <p class="row__hint">Move it if five hours is not your window.</p>
+                  </div>
+                  <input class="row__value" type="time" id="wbtb-time" aria-label="Wake-back-to-bed time" />
+                </div>
+                <button class="row" type="button" id="open-tonight">
+                  <span class="row__main">
+                    <span class="row__title">Run the bedtime ritual now</span>
+                    <span class="row__hint">Your dream sign, your intention, one dream to go back into.</span>
+                  </span>
+                  <svg class="row__chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
+                </button>
                 <button class="row" type="button" id="notif-test">
                   <span class="row__main">
                     <span class="row__title">Send one now</span>

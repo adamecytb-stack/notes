@@ -384,8 +384,21 @@ and deliberately nothing more.
   up from a lucid dream and it tells you to rub your hands together next time;
   tagged a sign that is now in three dreams and it tells you to rehearse it
   before sleep.
-- **Patterns** — current streak, longest run, lucid count and rate, a six-week
-  calendar with lucid nights lit, your most frequent dream signs, and which
+- **Tonight** — the only screen that happens in time to change anything. Before
+  bed: your most frequent dream sign, the intention to repeat until you mean it
+  (eight taps, because saying it twice does nothing), and one dream to replay as
+  you fall asleep — a lucid one if you have had one, since re-entering a dream
+  you were already lucid in is the shortest route back.
+- **Wake-back-to-bed** — the technique with the best odds there is, because
+  nearly every lucid dream happens in late-cycle REM. Switch it on in Settings
+  and it wakes you five hours after your bedtime, runs a twenty-minute stay-up
+  timer with one of your lucid dreams to read, and sends you back in.
+- **Reality checks that count** — the nudge is tappable, and doing one is
+  logged. Patterns shows checks per day against your lucid rate, because the
+  habit only transfers into dreams once it is genuine.
+- **Patterns** — current streak, longest run, lucid count and rate, six weeks
+  drawn as a night sky (every night a star, lucid ones burning, runs of them
+  joined into constellations), your most frequent dream signs, and which
   conditions line up with going lucid.
 - **The dream companion** — optional, off by default. See above.
 - **Works with no signal** — the app opens from cache and entries written

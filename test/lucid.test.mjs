@@ -131,8 +131,12 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   check('streak counted', Number(await page.textContent('#streak-n')) >= 1,
     `(showed ${await page.textContent('#streak-n')})`);
   check('lucid tallied', Number(await page.textContent('#stat-lucid')) >= 1);
-  check('calendar drawn', (await page.$$('.cal__cell')).length >= 42);
-  check('a lucid night is marked', (await page.$$('.cal__cell.is-lucid')).length >= 1);
+  check('the sky is drawn', (await page.$$('.sky__star')).length >= 1);
+  check('a lucid night burns', (await page.$$('.sky__star.is-lucid')).length >= 1);
+  check('the whole six weeks is drawn, lit or not',
+    (await page.$$('.sky__star')).length >= 42);
+  check('unwritten nights stay dim rather than absent',
+    (await page.$$('.sky__star:not(.is-logged):not(.is-lucid)')).length >= 1);
 
   console.log('\n— the ordinary branch —');
   await page.click('#patterns-back');

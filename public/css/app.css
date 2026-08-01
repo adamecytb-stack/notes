@@ -1042,63 +1042,72 @@ body::after {
 
 /* calendar */
 
+/* ---------------------------------------------------------- the night sky */
+
 .cal {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.3rem;
-}
-
-.cal__dow {
-  text-align: center;
-  font-variation-settings: 'opsz' 9, 'wght' 600, 'SOFT' 0, 'WONK' 0;
-  font-size: 0.5625rem;
-  letter-spacing: 0.1em;
-  color: var(--vellum-faint);
-  padding-bottom: 0.3rem;
-}
-
-.cal__cell {
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
+  border-radius: 16px;
+  background: radial-gradient(120% 90% at 50% 0%, var(--ink-raise), var(--ink));
   border: 1px solid var(--rule);
-  background: var(--ink-raise);
-  color: var(--vellum-faint);
-  font-variation-settings: 'opsz' 14, 'wght' 400, 'SOFT' 0, 'WONK' 0;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  transition: transform 0.16s var(--ease);
+  padding: 0.4rem;
+  overflow: hidden;
 }
 
-.cal__cell:active {
-  transform: scale(0.92);
+.sky {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
 }
 
-.cal__cell--future {
-  border-color: transparent;
-  background: none;
-  pointer-events: none;
+/* An unwritten night is barely there — the quiet stretches are the point. */
+.sky__star {
+  fill: var(--vellum);
+  opacity: 0.22;
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-/* Has to read clearly against an empty night at a glance — the point of the
-   grid is seeing your streak, not squinting for it. */
-.cal__cell.is-logged {
-  background: color-mix(in srgb, var(--moon) 20%, var(--ink-raise));
-  border-color: color-mix(in srgb, var(--moon) 45%, transparent);
-  color: var(--vellum);
+.sky__star.is-logged {
+  opacity: 0.75;
+  fill: var(--moon);
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--moon) 60%, transparent));
+  animation: twinkle 5s var(--ease) infinite;
+  animation-delay: var(--delay, 0s);
 }
 
-.cal__cell.is-lucid {
-  background: var(--ember);
-  border-color: var(--ember);
-  color: #1a0f07;
-  box-shadow: 0 0 16px var(--ember-glow);
+.sky__star.is-lucid {
+  opacity: 1;
+  fill: var(--ember);
+  filter: drop-shadow(0 0 5px var(--ember)) drop-shadow(0 0 12px var(--ember-glow));
+  animation: burn 3.4s var(--ease) infinite;
+  animation-delay: var(--delay, 0s);
 }
 
-.cal__cell.is-today {
-  outline: 1px solid var(--moon-deep);
-  outline-offset: 1px;
+.sky__star.is-today {
+  stroke: var(--vellum-faint);
+  stroke-width: 0.5;
+}
+
+.sky__link {
+  stroke: var(--ember);
+  stroke-width: 0.35;
+  opacity: 0.3;
+  stroke-linecap: round;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes burn {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky__star { animation: none; }
 }
 
 .legend {
@@ -1824,6 +1833,214 @@ button.row:active {
   }
 }
 
+/* =============================================== THE TWO THINGS RIGHT NOW */
+
+/* Reality check and bedtime prep, on the journal — everything else in the app
+   happens after the fact, and these two happen in time to matter. */
+.acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0 var(--pad) 1.1rem;
+}
+
+.act {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--rule-strong);
+  background: var(--ink-raise);
+  text-align: left;
+  transition: transform 0.16s var(--ease), border-color 0.2s var(--ease);
+}
+
+.act:active {
+  transform: scale(0.975);
+  border-color: color-mix(in srgb, var(--ember) 45%, transparent);
+}
+
+.act__title {
+  display: block;
+  font-variation-settings: 'opsz' 16, 'wght' 460, 'SOFT' 30, 'WONK' 1;
+  font-size: 0.9375rem;
+  color: var(--vellum);
+}
+
+.act__hint {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--vellum-faint);
+}
+
+/* the reality-check tally */
+
+.sparks {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+  height: 3rem;
+  margin-top: 0.75rem;
+}
+
+.spark {
+  flex: 1;
+  height: var(--h, 0%);
+  min-height: 2px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--ember), color-mix(in srgb, var(--ember) 40%, transparent));
+}
+
+.spark.is-empty {
+  background: var(--rule-strong);
+}
+
+/* ================================================================ TONIGHT */
+
+.tonight {
+  padding: 0 var(--pad) 3rem;
+}
+
+.tonight__lede {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--vellum-dim);
+  margin: 0.4rem 0 1.75rem;
+}
+
+.tonight__sign {
+  font-variation-settings: 'opsz' 40, 'wght' 420, 'SOFT' 60, 'WONK' 1;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  color: var(--ember);
+  margin: 0.5rem 0 0.4rem;
+}
+
+/* the intention */
+
+.mantra {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 1.15rem 1.2rem;
+  margin-top: 0.6rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--ember) 30%, transparent);
+  background: linear-gradient(180deg, var(--ember-glow), transparent 70%), var(--ink-raise);
+  transition: transform 0.14s var(--ease);
+}
+
+.mantra:active {
+  transform: scale(0.985);
+}
+
+.mantra__text {
+  display: block;
+  font-variation-settings: 'opsz' 34, 'wght' 400, 'SOFT' 60, 'WONK' 1;
+  font-size: 1.25rem;
+  line-height: 1.35;
+  color: var(--vellum);
+}
+
+.mantra__count {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vellum-faint);
+}
+
+.mantra__pips {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.pip {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--rule-strong);
+  transition: background 0.3s var(--ease);
+}
+
+.pip.is-lit {
+  background: var(--ember);
+  box-shadow: 0 0 8px var(--ember-glow);
+}
+
+/* the dream to go back into */
+
+.reenter {
+  margin-top: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  border: 1px solid var(--rule);
+  background: var(--ink-raise);
+}
+
+.reenter__title {
+  font-variation-settings: 'opsz' 28, 'wght' 440, 'SOFT' 40, 'WONK' 1;
+  font-size: 1.0625rem;
+  margin-bottom: 0.4rem;
+}
+
+.reenter__body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--vellum-dim);
+}
+
+.reenter__flag {
+  display: inline-block;
+  margin-top: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
+  background: var(--ember-glow);
+}
+
+/* wake back to bed */
+
+.wbtb {
+  text-align: center;
+  padding: 1.5rem 1.25rem 1.35rem;
+  margin-bottom: 1.75rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--ember) 34%, transparent);
+  background: radial-gradient(120% 100% at 50% 0%, var(--ember-glow), transparent 70%),
+    var(--ink-raise);
+}
+
+.wbtb__clock {
+  font-variation-settings: 'opsz' 120, 'wght' 300, 'SOFT' 80, 'WONK' 1;
+  font-size: 3.75rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ember);
+}
+
+.wbtb__note {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--vellum-dim);
+  margin: 0.75rem 0 1.15rem;
+}
+
+.btn--wide {
+  width: 100%;
+  margin-top: 1.75rem;
+}
+
+.wbtb .btn--wide {
+  margin-top: 0;
+}
+
 /* ------------------------------------------------------------ wider view  */
 
 @media (min-width: 34rem) {
@@ -1835,7 +2052,9 @@ button.row:active {
   .scroll > .masthead,
   .scroll > .timeline,
   .settings,
-  .subhead {
+  .subhead,
+  .tonight,
+  .acts {
     max-width: 40rem;
     margin-inline: auto;
   }

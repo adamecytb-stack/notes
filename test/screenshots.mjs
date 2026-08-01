@@ -77,6 +77,29 @@ const errors = [];
   await page.waitForTimeout(900);
   await page.screenshot({ path: `${OUT}/4-journal-after.png` });
 
+  // patterns, with the sky
+  await page.click('#open-patterns');
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `${OUT}/4b-patterns.png` });
+  await page.screenshot({ path: `${OUT}/4b-patterns-full.png`, fullPage: true });
+  await page.click('#patterns-back');
+  await page.waitForTimeout(700);
+
+  // the bedtime ritual
+  await page.click('#open-tonight-journal');
+  await page.waitForTimeout(900);
+  for (let i = 0; i < 5; i++) await page.click('#mantra');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/4c-tonight.png` });
+  await page.screenshot({ path: `${OUT}/4d-tonight-full.png`, fullPage: true });
+
+  // woken for wake-back-to-bed
+  await page.goto(`${BASE}/?wbtb=1`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2800);
+  await page.screenshot({ path: `${OUT}/4e-wbtb.png` });
+  await page.click('#tonight-back'); // back to the journal, where Settings lives
+  await page.waitForTimeout(700);
+
   // settings
   await page.click('#open-settings');
   await page.waitForTimeout(900);

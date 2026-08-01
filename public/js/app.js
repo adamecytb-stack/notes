@@ -76,6 +76,9 @@ import {
   disableReminders,
   updateSchedule,
   sendTest,
+  bedtimeNudgeAt,
+  suggestedWbtb,
+  wbtbAt,
 } from './reminders.js';
 import {
   hasConsented,
@@ -87,7 +90,7 @@ import {
   ask,
 } from './companion.js';
 
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.3.0';
 
 /* ------------------------------------------------------------------ views */
 
@@ -98,6 +101,7 @@ const SCREENS = {
   lock: '#screen-lock',
   journal: '#screen-journal',
   patterns: '#screen-patterns',
+  tonight: '#screen-tonight',
   settings: '#screen-settings',
 };
 
@@ -116,6 +120,7 @@ function showView(view, { push = true } = {}) {
   }
   if (view === 'settings') refreshSettings();
   if (view === 'patterns') renderPatterns();
+  if (view !== 'tonight') stopWbtbTimer();
 }
 
 window.addEventListener('popstate', (e) => {
@@ -453,12 +458,18 @@ function renderPatterns() {
 
   renderCalendar(stats);
   renderSigns(stats);
+  renderChecks();
   renderConditions(entries);
 }
 
 /**
- * Six weeks ending today, as a grid of nights. A night is "logged" if anything
- * was written for it; lucid nights glow.
+ * Six weeks ending tonight, drawn as a sky rather than a grid.
+ *
+ * The layout is still a calendar underneath — seven columns, one row a week —
+ * so a night keeps its position and last Tuesday stays findable. What changes
+ * is what a night looks like: nothing written is empty sky, a written night is
+ * a faint star, a lucid night burns. Lucid nights within a few days of each
+ * other are joined, because a run of them is the thing worth seeing.
  */
 function renderCalendar(stats) {
   const cal = $('#cal');
@@ -466,42 +477,93 @@ function renderCalendar(stats) {
 
   const today = nightKey(Date.now());
   const WEEKS = 6;
-  // Back up to the Monday of the week containing the earliest day shown.
-  const start = new Date(today - (WEEKS * 7 - 1) * DAY_MS);
+  const COLS = 7;
+  const start = new Date(today - (WEEKS * COLS - 1) * DAY_MS);
   const shift = (start.getDay() + 6) % 7; // Monday = 0
   start.setDate(start.getDate() - shift);
   start.setHours(0, 0, 0, 0);
 
-  for (const label of ['M', 'T', 'W', 'T', 'F', 'S', 'S']) {
-    cal.appendChild(el('span', 'cal__dow', label));
-  }
+  const total = WEEKS * COLS + shift;
+  const rows = Math.ceil(total / COLS);
 
-  for (let i = 0; i < WEEKS * 7 + shift; i++) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${COLS * 10} ${rows * 10}`);
+  svg.setAttribute('class', 'sky');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Your last six weeks. Bright stars are lucid nights.');
+
+  /*
+   * Jittered off the lattice, and varied in size, so it reads as a sky rather
+   * than a spreadsheet — evenly spaced identical dots look like a grid no
+   * matter how dim they are. Both come from the date, so a night keeps its
+   * position and brightness between renders instead of twitching about.
+   */
+  const at = (i, key) => {
+    const wobble = (n) => (((key / DAY_MS + n) * 2654435761) % 1000) / 1000 - 0.5;
+    return {
+      x: (i % COLS) * 10 + 5 + wobble(1) * 5.2,
+      y: Math.floor(i / COLS) * 10 + 5 + wobble(2) * 5.2,
+      // 0.45–0.95, so the empty sky has depth instead of a uniform stipple.
+      dim: 0.45 + (wobble(3) + 0.5) * 0.5,
+    };
+  };
+
+  const lucid = [];
+  const stars = [];
+  for (let i = 0; i < total; i++) {
     const key = start.getTime() + i * DAY_MS;
-    if (key > today) {
-      cal.appendChild(el('span', 'cal__cell cal__cell--future'));
-      continue;
-    }
+    if (key > today) continue;
     const night = stats.nights.get(key);
-    const cell = el('button', 'cal__cell');
-    cell.type = 'button';
-    cell.textContent = String(new Date(key).getDate());
-    if (night) cell.classList.add(night.lucid ? 'is-lucid' : 'is-logged');
-    if (key === today) cell.classList.add('is-today');
-
-    const stamp = new Date(key).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
-    cell.setAttribute(
-      'aria-label',
-      night
-        ? `${stamp}: ${night.logged} dream${night.logged === 1 ? '' : 's'}${night.lucid ? ', lucid' : ''}`
-        : `${stamp}: nothing written`,
-    );
-    cell.addEventListener('click', () => {
-      if (!night) return toast('Nothing written that night');
-      toast(cell.getAttribute('aria-label'));
-    });
-    cal.appendChild(cell);
+    const p = at(i, key);
+    if (night?.lucid) lucid.push({ ...p, key });
+    // Every night gets a star, including the ones you did not write. The
+    // unwritten ones are barely lit — they are what makes the written ones
+    // read as a sky rather than as five dots in an empty box.
+    stars.push({ ...p, key, night });
   }
+
+  // Constellation lines first, so they sit behind the stars they join.
+  for (let a = 0; a < lucid.length; a++) {
+    for (let b = a + 1; b < lucid.length; b++) {
+      if (Math.round((lucid[b].key - lucid[a].key) / DAY_MS) > 4) continue;
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', lucid[a].x.toFixed(2));
+      line.setAttribute('y1', lucid[a].y.toFixed(2));
+      line.setAttribute('x2', lucid[b].x.toFixed(2));
+      line.setAttribute('y2', lucid[b].y.toFixed(2));
+      line.setAttribute('class', 'sky__link');
+      svg.appendChild(line);
+    }
+  }
+
+  for (const star of stars) {
+    const { night, key } = star;
+    const stamp = new Date(key).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    const label = night
+      ? `${stamp}: ${night.logged} dream${night.logged === 1 ? '' : 's'}${night.lucid ? ', lucid' : ''}`
+      : `${stamp}: nothing written yet`;
+
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', star.x.toFixed(2));
+    dot.setAttribute('cy', star.y.toFixed(2));
+    dot.setAttribute('r', night?.lucid ? '2.3' : night ? '1.25' : star.dim.toFixed(2));
+    let cls = 'sky__star';
+    if (night?.lucid) cls += ' is-lucid';
+    else if (night) cls += ' is-logged';
+    if (key === today) cls += ' is-today';
+    dot.setAttribute('class', cls);
+    // Staggered so they do not all breathe in time with each other.
+    dot.style.setProperty('--delay', `${((key / DAY_MS) % 7) * 0.4}s`);
+
+    const title = document.createElementNS(ns, 'title');
+    title.textContent = label;
+    dot.appendChild(title);
+    dot.addEventListener('click', () => toast(label));
+    svg.appendChild(dot);
+  }
+
+  cal.appendChild(svg);
 
   const first = new Date(start);
   const label =
@@ -509,6 +571,11 @@ function renderCalendar(stats) {
       ? new Date(today).toLocaleDateString(undefined, { month: 'long' })
       : `${first.toLocaleDateString(undefined, { month: 'short' })} – ${new Date(today).toLocaleDateString(undefined, { month: 'short' })}`;
   $('#cal-label').textContent = `Last six weeks · ${label}`;
+
+  const lit = stats.lucidNights;
+  $('#cal-note').textContent = lit
+    ? `${lit} lucid night${lit === 1 ? '' : 's'} in the last six weeks.`
+    : 'Every night you write becomes a star. The lucid ones burn.';
 }
 
 function renderBars(node, rows, max) {
@@ -566,6 +633,207 @@ function renderConditions(entries) {
     Math.max(100, ...insights.map((i) => i.rate)),
   );
 }
+
+/* ======================================================== REALITY CHECKS */
+
+/*
+ * A reality check only works if it is done properly — actually entertaining
+ * the possibility, not waving a hand at it. Counting them is what makes people
+ * do that, so the tally is the feature. It stays on this phone: the server has
+ * no business knowing how often anyone questions reality.
+ */
+
+const dayKey = (ts = Date.now()) => new Date(ts).toISOString().slice(0, 10);
+
+function logCheck() {
+  const log = { ...(prefs.checkLog || {}) };
+  const key = dayKey();
+  log[key] = (log[key] || 0) + 1;
+  // Six weeks is all Patterns draws, so older days are dead weight.
+  const cutoff = dayKey(Date.now() - 42 * DAY_MS);
+  for (const k of Object.keys(log)) if (k < cutoff) delete log[k];
+  setPref('checkLog', log);
+  return log[key];
+}
+
+function checkStats() {
+  const log = prefs.checkLog || {};
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const key = dayKey(Date.now() - i * DAY_MS);
+    days.push({ key, count: log[key] || 0 });
+  }
+  return {
+    days,
+    total: days.reduce((sum, d) => sum + d.count, 0),
+    today: log[dayKey()] || 0,
+  };
+}
+
+function renderChecks() {
+  const { days, total, today } = checkStats();
+  $('#checks-group').classList.toggle('hidden', total === 0);
+  if (!total) return;
+
+  $('#checks-note').textContent =
+    `${total} in the last fortnight, ${(total / 14).toFixed(1)} a day. ${today} today. ` +
+    'The habit only transfers into dreams once it is genuine — question it properly, every time.';
+
+  const node = $('#checks-spark');
+  node.replaceChildren();
+  const max = Math.max(1, ...days.map((d) => d.count));
+  for (const day of days) {
+    const bar = el('span', 'spark');
+    bar.style.setProperty('--h', `${Math.round((day.count / max) * 100)}%`);
+    if (!day.count) bar.classList.add('is-empty');
+    bar.title = `${day.key}: ${day.count}`;
+    node.appendChild(bar);
+  }
+}
+
+/** Offered after a reality-check nudge, and from the journal at any time. */
+function askedRealityCheck() {
+  const n = logCheck();
+  renderChecks();
+  toast(n === 1 ? 'Checked. That is one today.' : `Checked. ${n} today.`);
+}
+
+$('#do-check').addEventListener('click', askedRealityCheck);
+
+/* ================================================================ TONIGHT */
+
+/**
+ * The two moments that actually produce lucid dreams: the minutes before you
+ * fall asleep, and the wake in the small hours. Everything else in this app
+ * happens after the fact — this is the only screen that happens in time to
+ * change the outcome.
+ */
+
+let mantraCount = 0;
+let wbtbTimer = null;
+let wbtbLeft = 0;
+
+const MANTRA_TARGET = 8;
+const WBTB_MINUTES = 20;
+
+const lowerFirst = (str) => (str ? str[0].toLowerCase() + str.slice(1) : str);
+
+function openTonight(mode = 'bed') {
+  const entries = sortedEntries();
+  const stats = computeStats(entries);
+  const top = stats.topSign;
+  const sign = top && top.count >= 2 ? top.name : null;
+  const wbtbMode = mode === 'wbtb';
+
+  $('#tonight-title').textContent = wbtbMode ? 'Wake back to bed' : 'Before you sleep';
+  $('#tonight-lede').textContent = wbtbMode
+    ? 'You are awake in the best REM window of the night. Stay up, stay dim, then go back in expecting to notice.'
+    : 'One minute now is worth an hour of trying later.';
+
+  $('#wbtb-panel').classList.toggle('hidden', !wbtbMode);
+  if (wbtbMode) startWbtbTimer();
+  else stopWbtbTimer();
+
+  $('#tonight-sign').textContent = sign || 'Not enough dreams yet';
+  $('#tonight-sign-note').textContent = sign
+    ? `It has turned up in ${top.count} of your dreams. Picture it now, and picture catching it.`
+    : 'Tag the impossible parts of a few dreams and the one that keeps coming back will appear here.';
+
+  // The signs read as sentences ("Something impossible felt normal"), so they
+  // have to be quoted rather than dropped into the middle of one.
+  $('#mantra-text').textContent = sign
+    ? `Next time — ${lowerFirst(sign)} — I will realise I am dreaming.`
+    : 'The next time something does not make sense, I will realise I am dreaming.';
+
+  mantraCount = 0;
+  renderMantra();
+  renderReenter(entries, wbtbMode);
+  showView('tonight');
+}
+
+function renderMantra() {
+  const pips = $('#mantra-pips');
+  pips.replaceChildren();
+  for (let i = 0; i < MANTRA_TARGET; i++) {
+    const pip = el('span', 'pip');
+    if (i < mantraCount) pip.classList.add('is-lit');
+    pips.appendChild(pip);
+  }
+  $('#mantra-count').textContent =
+    mantraCount === 0
+      ? 'Tap each time you say it'
+      : mantraCount >= MANTRA_TARGET
+        ? 'That is enough. Sleep on it.'
+        : `${mantraCount} of ${MANTRA_TARGET}`;
+}
+
+$('#mantra').addEventListener('click', () => {
+  mantraCount = Math.min(MANTRA_TARGET, mantraCount + 1);
+  renderMantra();
+  if (mantraCount === MANTRA_TARGET) toast('Now go to sleep still thinking it');
+});
+
+/**
+ * A dream to replay on the way down. Prefers a lucid one — re-entering a dream
+ * you have already been lucid in is the shortest route back to another.
+ */
+function renderReenter(entries, wbtbMode) {
+  const pick =
+    entries.find((e) => e.lucid) || entries.find((e) => (e.body || '').length > 80) || entries[0];
+
+  $('#reenter-group').classList.toggle('hidden', !pick);
+  if (!pick) return;
+
+  const node = $('#reenter');
+  node.replaceChildren();
+  node.appendChild(el('h3', 'reenter__title', pick.title || 'Untitled'));
+  node.appendChild(el('p', 'reenter__body', (pick.body || '').slice(0, 320)));
+  if (pick.lucid) node.appendChild(el('span', 'reenter__flag', 'you were lucid in this one'));
+  $('#reenter-note').textContent = wbtbMode
+    ? 'Read it, then go back to bed and pick it up where it left off.'
+    : 'Replay it as you fall asleep — and this time, notice.';
+}
+
+function startWbtbTimer() {
+  stopWbtbTimer();
+  wbtbLeft = WBTB_MINUTES * 60;
+  paintWbtb();
+  wbtbTimer = setInterval(() => {
+    wbtbLeft -= 1;
+    paintWbtb();
+    if (wbtbLeft <= 0) {
+      stopWbtbTimer();
+      $('#wbtb-note').textContent =
+        'That is twenty minutes. Go back to bed now, expecting to notice.';
+      toast('Time. Back to bed.');
+    }
+  }, 1000);
+}
+
+function paintWbtb() {
+  const left = Math.max(0, wbtbLeft);
+  $('#wbtb-clock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+}
+
+function stopWbtbTimer() {
+  clearInterval(wbtbTimer);
+  wbtbTimer = null;
+}
+
+$('#wbtb-go').addEventListener('click', () => {
+  stopWbtbTimer();
+  showView('journal');
+  toast('Good luck. Expect to notice.');
+});
+
+$('#tonight-done').addEventListener('click', () => {
+  stopWbtbTimer();
+  showView('journal');
+});
+
+$('#tonight-back').addEventListener('click', () => showView('journal'));
+$('#open-tonight').addEventListener('click', () => openTonight('bed'));
+$('#open-tonight-journal').addEventListener('click', () => openTonight('bed'));
 
 /* ================================================================ COMPOSE */
 
@@ -1149,6 +1417,7 @@ function refreshSettings() {
   $('#set-privacy-screen').setAttribute('aria-pressed', String(prefs.privacyScreen));
   $('#notif-time').value = prefs.notifyTime;
   renderCheckTimes();
+  refreshTonightRows();
   refreshPushState().then(updateNotifyHint);
   updateNotifyHint();
 
@@ -1487,6 +1756,73 @@ $('#notif-time').addEventListener('change', async (e) => {
   await updateSchedule().catch(() => {});
 });
 
+/* ------------------------------------------------------- bedtime and WBTB */
+
+const pretty = (t) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
+  if (!m) return '';
+  const d = new Date();
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+};
+
+function refreshTonightRows() {
+  $('#set-bedtime').value = prefs.bedtime;
+  $('#set-bednudge').setAttribute('aria-pressed', String(!!prefs.bedtimeNudge));
+  $('#set-wbtb').setAttribute('aria-pressed', String(!!prefs.wbtb));
+  $('#wbtb-time-row').classList.toggle('hidden', !prefs.wbtb);
+  $('#wbtb-time').value = prefs.wbtbTime || suggestedWbtb();
+
+  // Both ride on the reminder subscription, so say so rather than letting a
+  // switch sit on with nothing behind it.
+  const noPush = !push.subscribed;
+  const at = bedtimeNudgeAt();
+  $('#bednudge-hint').textContent = noPush
+    ? 'Turn on reminders above first.'
+    : prefs.bedtimeNudge && at
+      ? `At ${pretty(at)}, twenty minutes before bed, to repeat your intention.`
+      : 'Twenty minutes before bed, to repeat your intention.';
+
+  const wake = wbtbAt();
+  $('#wbtb-hint').textContent = noPush
+    ? 'Turn on reminders above first.'
+    : prefs.wbtb && wake
+      ? `Wakes you at ${pretty(wake)}. Stay up twenty minutes, then go back with the intention.`
+      : 'The best odds there are. Wakes you in late REM, five hours in.';
+}
+
+$('#set-bedtime').addEventListener('change', async (e) => {
+  setPref('bedtime', e.target.value);
+  // The wake time follows bedtime unless it has been moved by hand.
+  if (!prefs.wbtbTime) $('#wbtb-time').value = suggestedWbtb();
+  refreshTonightRows();
+  await updateSchedule().catch(() => {});
+});
+
+$('#set-bednudge').addEventListener('click', async (e) => {
+  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+  if (on && !push.subscribed) return toast('Turn on reminders first');
+  setPref('bedtimeNudge', on);
+  refreshTonightRows();
+  await updateSchedule().catch(() => {});
+  toast(on ? `Set for ${pretty(bedtimeNudgeAt())}` : 'Bedtime reminder off');
+});
+
+$('#set-wbtb').addEventListener('click', async (e) => {
+  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+  if (on && !push.subscribed) return toast('Turn on reminders first');
+  setPref('wbtb', on);
+  refreshTonightRows();
+  await updateSchedule().catch(() => {});
+  toast(on ? `Waking you at ${pretty(wbtbAt())}` : 'Wake-back-to-bed off');
+});
+
+$('#wbtb-time').addEventListener('change', async (e) => {
+  setPref('wbtbTime', e.target.value);
+  refreshTonightRows();
+  await updateSchedule().catch(() => {});
+});
+
 $('#notif-test').addEventListener('click', async () => {
   try {
     await sendTest();
@@ -1583,13 +1919,38 @@ async function boot() {
       .catch(() => {});
   }
 
-  // Launched from the Home Screen shortcut: go straight to writing.
-  if (new URLSearchParams(location.search).get('capture') === '1' && state.ready) {
-    history.replaceState({ view: 'journal' }, '');
-    openCompose(null);
-  }
+  // Opened from a notification, or the Home Screen shortcut.
+  if (state.ready) openFromLink(new URLSearchParams(location.search));
+
+  // Same thing when the app was already open — the URL will not change, so the
+  // service worker says which nudge was tapped instead.
+  navigator.serviceWorker?.addEventListener('message', (e) => {
+    if (e.data?.type === 'NUDGE' && state.ready) {
+      openFromLink(new URLSearchParams(`${e.data.kind}=1`));
+    }
+  });
 
   watchForUpdates();
+}
+
+/**
+ * Where a tapped notification lands. Each nudge exists to make one thing
+ * happen, so it opens that thing rather than the journal.
+ */
+function openFromLink(params) {
+  const go = (k) => params.get(k) === '1';
+  /*
+   * The query string is dropped as it is read, so a nudge fires once and once
+   * only. Without this, an installed app that restores its last URL would log
+   * a fresh reality check on every cold start — and a tally you cannot trust
+   * is worse than no tally at all.
+   */
+  history.replaceState({ view: 'journal' }, '', location.pathname);
+
+  if (go('capture') || go('morning')) return openCompose(null);
+  if (go('tonight') || go('bedtime')) return openTonight('bed');
+  if (go('wbtb')) return openTonight('wbtb');
+  if (go('check')) return askedRealityCheck();
 }
 
 /* ---------------------------------------------------------------- updates */

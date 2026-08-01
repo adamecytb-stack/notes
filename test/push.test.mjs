@@ -49,11 +49,15 @@ const rows = (sql) =>
     timezone: 'Europe/Prague',
     morningTime: '07:15',
     checkTimes: '10:30,13:00,16:00,19:30',
+    bedtimeTime: '22:40',
+    wbtbTime: '04:00',
   });
   check('subscription accepted', r.status === 200, JSON.stringify(r.json));
 
   let stored = rows('SELECT * FROM push_subscriptions');
   check('the times are stored', stored[0]?.morning_time === '07:15');
+  check('the bedtime nudge is stored', stored[0]?.bedtime_time === '22:40');
+  check('the wake-back-to-bed alarm is stored', stored[0]?.wbtb_time === '04:00');
   check('the timezone is stored, not an offset', stored[0]?.timezone === 'Europe/Prague');
   check('nothing personal is stored',
     !JSON.stringify(stored).toLowerCase().includes('dream'), JSON.stringify(stored[0]));
@@ -61,11 +65,16 @@ const rows = (sql) =>
   r = await call('POST', '/api/push/subscribe', {
     endpoint: `${STUB}/push/ok`, timezone: 'Europe/Prague',
     morningTime: 'not-a-time', checkTimes: '10:30,rubbish,25:99',
+    bedtimeTime: '24:00', wbtbTime: '4:00',
   });
   stored = rows('SELECT * FROM push_subscriptions');
   check('rubbish times are dropped rather than stored',
     stored[0].morning_time === '' && stored[0].check_times === '10:30',
     JSON.stringify({ m: stored[0].morning_time, c: stored[0].check_times }));
+  check('an out-of-range hour is dropped', stored[0].bedtime_time === '',
+    `(kept "${stored[0].bedtime_time}")`);
+  check('an unpadded time is dropped rather than half-parsed', stored[0].wbtb_time === '',
+    `(kept "${stored[0].wbtb_time}")`);
   check('re-subscribing updates rather than duplicating', stored.length === 1);
 
   // Locally PUSH_ALLOW_INSECURE lets the stub be plain http, so this checks the
