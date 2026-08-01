@@ -613,26 +613,6 @@ body:not([data-view='lock']) .sky::after {
   color: var(--vellum-faint);
 }
 
-/*
- * Lit rather than painted. A solid pill of colour was the loudest thing on a
- * screen whose whole point is being the only light in a dark room; this reads
- * as the same warm source as everything else.
- */
-.lock .btn--primary {
-  background: linear-gradient(180deg, rgba(232, 149, 90, 0.2), rgba(232, 149, 90, 0.08));
-  border: 1px solid color-mix(in srgb, var(--ember) 55%, transparent);
-  color: var(--ember);
-  box-shadow: 0 0 28px rgba(232, 149, 90, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  font-variation-settings: 'opsz' 20, 'wght' 450, 'SOFT' 40, 'WONK' 1;
-  letter-spacing: 0.01em;
-}
-
-.lock .btn--primary:active {
-  background: var(--ember);
-  color: var(--ink);
-  box-shadow: 0 0 34px rgba(232, 149, 90, 0.4);
-}
-
 [data-theme='daybreak'] .lock::before {
   background: linear-gradient(180deg, transparent 0%, var(--ink) 30%, var(--ink) 100%);
 }
@@ -666,10 +646,30 @@ body:not([data-view='lock']) .sky::after {
   pointer-events: none;
 }
 
+/*
+ * Lit rather than painted, everywhere. A solid pill of colour was the loudest
+ * thing on every screen, in an app whose whole premise is being the only light
+ * in a dark room. Pressing it fills — the button lights up under the thumb,
+ * which is both the feedback and the point.
+ */
 .btn--primary {
+  background: linear-gradient(180deg, rgba(232, 149, 90, 0.2), rgba(232, 149, 90, 0.07));
+  border: 1px solid color-mix(in srgb, var(--ember) 52%, transparent);
+  color: var(--ember);
+  box-shadow: 0 0 26px rgba(232, 149, 90, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  font-variation-settings: 'opsz' 20, 'wght' 450, 'SOFT' 40, 'WONK' 1;
+}
+
+.btn--primary:active {
   background: var(--ember);
+  border-color: var(--ember);
   color: #1a0f07;
-  box-shadow: 0 6px 26px var(--ember-glow);
+  box-shadow: 0 0 32px rgba(232, 149, 90, 0.38);
+}
+
+[data-theme='daybreak'] .btn--primary {
+  background: linear-gradient(180deg, rgba(180, 98, 44, 0.16), rgba(180, 98, 44, 0.06));
+  color: var(--ember-deep);
 }
 
 .btn--ghost {
@@ -967,15 +967,28 @@ body:not([data-view='lock']) .sky::after {
 
 /* =============================================================== STEPS  */
 
+/*
+ * One question per screen, sitting a third of the way down rather than pinned
+ * to the top with a void underneath. A single question hanging above half a
+ * screen of nothing reads as a page that failed to load.
+ */
 .step {
   display: none;
+  min-height: 58vh;
   padding-top: 0.75rem;
   padding-bottom: 2rem;
 }
 
 .step.is-active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   animation: step-in 0.32s var(--ease-out-soft) both;
+}
+
+/* The long ones start at the top instead, or their first question is cut off. */
+.step--tall.is-active {
+  justify-content: flex-start;
 }
 
 @keyframes step-in {
@@ -1326,7 +1339,7 @@ body:not([data-view='lock']) .sky::after {
   overflow: hidden;
 }
 
-.sky {
+.starmap {
   display: block;
   width: 100%;
   height: auto;
@@ -1334,7 +1347,7 @@ body:not([data-view='lock']) .sky::after {
 }
 
 /* An unwritten night is barely there — the quiet stretches are the point. */
-.sky__star {
+.starmap__star {
   fill: var(--vellum);
   opacity: 0.22;
   cursor: pointer;
@@ -1342,7 +1355,7 @@ body:not([data-view='lock']) .sky::after {
   transform-origin: center;
 }
 
-.sky__star.is-logged {
+.starmap__star.is-logged {
   opacity: 0.75;
   fill: var(--moon);
   filter: drop-shadow(0 0 2px color-mix(in srgb, var(--moon) 60%, transparent));
@@ -1350,7 +1363,7 @@ body:not([data-view='lock']) .sky::after {
   animation-delay: var(--delay, 0s);
 }
 
-.sky__star.is-lucid {
+.starmap__star.is-lucid {
   opacity: 1;
   fill: var(--ember);
   filter: drop-shadow(0 0 5px var(--ember)) drop-shadow(0 0 12px var(--ember-glow));
@@ -1358,12 +1371,12 @@ body:not([data-view='lock']) .sky::after {
   animation-delay: var(--delay, 0s);
 }
 
-.sky__star.is-today {
+.starmap__star.is-today {
   stroke: var(--vellum-faint);
   stroke-width: 0.5;
 }
 
-.sky__link {
+.starmap__link {
   stroke: var(--ember);
   stroke-width: 0.35;
   opacity: 0.3;
@@ -1381,7 +1394,7 @@ body:not([data-view='lock']) .sky::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sky__star { animation: none; }
+  .starmap__star { animation: none; }
 }
 
 .legend {
@@ -1677,11 +1690,22 @@ body:not([data-view='lock']) .sky::after {
   padding: 0 0 0.75rem 0.15rem;
 }
 
+/*
+ * Ruled sections rather than boxed cards. The journal is already a bound page
+ * with a margin line down it; settings that look like an iOS list belong to a
+ * different app.
+ */
 .group__body {
-  background: var(--ink-raise);
-  border: 1px solid var(--rule);
-  border-radius: 16px;
-  overflow: hidden;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.settings .group__body {
+  background: none;
+  border-radius: 0;
+}
+
+.settings .group__label {
+  padding-left: 0;
 }
 
 .row {
@@ -1690,9 +1714,15 @@ body:not([data-view='lock']) .sky::after {
   gap: 1rem;
   width: 100%;
   min-height: 3.5rem;
-  padding: 0.85rem 1rem;
+  padding: 0.95rem 0.15rem;
   text-align: left;
   border-bottom: 1px solid var(--rule);
+  transition: background 0.2s var(--ease);
+}
+
+/* Only rows that do something respond to being pressed. */
+button.row:active {
+  background: var(--ink-raise);
 }
 
 .row:last-child {
@@ -1738,6 +1768,41 @@ button.row:active {
   color: var(--vellum-dim);
   font-size: 0.9375rem;
   font-variation-settings: 'opsz' 14, 'wght' 380, 'SOFT' 0, 'WONK' 0;
+}
+
+/*
+ * A native time input arrives with the platform's own light chrome, which on a
+ * dark page looks like a bug. Stripped back to a value you can tap.
+ */
+input.row__value[type='time'] {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0.3rem 0.45rem;
+  border-radius: 8px;
+  color: var(--ember);
+  font-variation-settings: 'opsz' 16, 'wght' 420, 'SOFT' 20, 'WONK' 0;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+  transition: box-shadow 0.2s var(--ease);
+}
+
+input.row__value[type='time']:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--ember);
+}
+
+/* The little clock glyph WebKit adds is the last light-mode thing left. */
+input.row__value[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.4;
+  cursor: pointer;
+}
+
+[data-theme='daybreak'] input.row__value[type='time']::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.5;
 }
 
 .row--danger .row__title {

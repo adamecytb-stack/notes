@@ -493,7 +493,7 @@ function renderCalendar(stats) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', `0 0 ${COLS * 10} ${rows * 10}`);
-  svg.setAttribute('class', 'sky');
+  svg.setAttribute('class', 'starmap');
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', 'Your last six weeks. Bright stars are lucid nights.');
 
@@ -536,7 +536,7 @@ function renderCalendar(stats) {
       line.setAttribute('y1', lucid[a].y.toFixed(2));
       line.setAttribute('x2', lucid[b].x.toFixed(2));
       line.setAttribute('y2', lucid[b].y.toFixed(2));
-      line.setAttribute('class', 'sky__link');
+      line.setAttribute('class', 'starmap__link');
       svg.appendChild(line);
     }
   }
@@ -552,7 +552,7 @@ function renderCalendar(stats) {
     dot.setAttribute('cx', star.x.toFixed(2));
     dot.setAttribute('cy', star.y.toFixed(2));
     dot.setAttribute('r', night?.lucid ? '2.3' : night ? '1.25' : star.dim.toFixed(2));
-    let cls = 'sky__star';
+    let cls = 'starmap__star';
     if (night?.lucid) cls += ' is-lucid';
     else if (night) cls += ' is-logged';
     if (key === today) cls += ' is-today';
