@@ -30,6 +30,7 @@ const SHELL = [
   '/js/crypto.js',
   '/js/dream.js',
   '/js/idb.js',
+  '/js/sky.js',
   '/js/reminders.js',
   '/js/settings.js',
   '/js/sharing.js',

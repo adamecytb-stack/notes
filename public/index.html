@@ -102,11 +102,28 @@
       </defs>
     </svg>
 
+    <!-- The sky everything else floats over. Fixed, behind the app. -->
+    <div class="sky" id="sky" aria-hidden="true"></div>
+
+    <!--
+      The boot screen. Visible from the first paint, before any JavaScript has
+      run, so the app never shows a blank frame while the vault is opening.
+      Removed once the journal or the lock screen is ready to take over.
+    -->
+    <div class="boot" id="boot">
+      <div class="boot__inner">
+        <div class="boot__moon" id="boot-moon"></div>
+        <h1 class="boot__word">Nocturne</h1>
+        <p class="boot__note" id="boot-note">Opening your journal</p>
+      </div>
+    </div>
+
     <div class="app">
       <!-- ==================================================== LOCK ==== -->
       <section class="screen lock" id="screen-lock" aria-label="Sign in">
         <div class="lock__inner stagger">
-          <svg class="lock__mark" aria-hidden="true"><use href="#i-moon" /></svg>
+          <div class="lock__moon" id="lock-moon"></div>
+          <p class="lock__phase t-meta" id="lock-phase"></p>
 
           <h1 class="lock__title">Nocturne</h1>
           <p class="lock__sub" id="lock-sub">

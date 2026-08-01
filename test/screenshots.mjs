@@ -31,8 +31,12 @@ const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('requestfailed', (r) => errors.push('reqfail: ' + r.url() + ' ' + r.failure()?.errorText));
 
-  await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1400);
+  // The boot screen, caught before it hands over.
+  await page.goto(BASE, { waitUntil: 'commit' });
+  await page.waitForTimeout(950); // let the wordmark finish arriving
+  await page.screenshot({ path: `${OUT}/0-boot.png` });
+
+  await page.waitForTimeout(1800);
   await page.screenshot({ path: `${OUT}/1-lock.png` });
 
   // sign in

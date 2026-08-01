@@ -42,6 +42,7 @@ import {
   bytesLabel,
 } from './ui.js';
 import { idbGetAll } from './idb.js';
+import { starfield, moonSvg, moonPhase, phaseName } from './sky.js';
 import {
   emptyEntry,
   normalise,
@@ -108,6 +109,9 @@ const SCREENS = {
 function showView(view, { push = true } = {}) {
   const base = view === 'compose' ? 'journal' : view;
   currentView = view;
+  // Lets the stylesheet treat the sky differently where there is a lot of
+  // text to read versus where it is the whole point of the screen.
+  document.body.dataset.view = base;
 
   for (const [name, sel] of Object.entries(SCREENS)) {
     $(sel).classList.toggle('is-active', name === base);
@@ -1900,8 +1904,47 @@ subscribe(() => {
 
 /* ------------------------------------------------------------------ boot  */
 
+/**
+ * The boot screen covers the gap between first paint and a usable app —
+ * recalling the vault key and decrypting a journal is not instant, and the
+ * alternative is a blank frame followed by a jump. It is in the HTML rather
+ * than built here so it is on screen before any of this has parsed.
+ */
+const bootedAt = Date.now();
+
+/*
+ * A splash that appears for 150ms and vanishes is a flicker, not a splash, so
+ * it is held for a beat even when the vault opens instantly. Long enough to
+ * read as deliberate, short enough that nobody is kept waiting.
+ */
+const BOOT_FLOOR_MS = 650;
+
+function dismissBoot() {
+  const boot = $('#boot');
+  if (!boot || boot.classList.contains('is-gone')) return;
+  const wait = Math.max(0, BOOT_FLOOR_MS - (Date.now() - bootedAt));
+  setTimeout(() => {
+    boot.classList.add('is-gone');
+    // Left in the DOM for the length of the fade, then taken out so it can
+    // never swallow a tap.
+    setTimeout(() => boot.remove(), 900);
+  }, wait);
+}
+
+function paintSky() {
+  starfield($('#sky'));
+
+  const phase = moonPhase();
+  $('#boot-moon').replaceChildren(moonSvg(72, phase));
+  $('#lock-moon').replaceChildren(moonSvg(64, phase));
+  // The real phase, tonight. It is the one thing on the lock screen that is
+  // different every time you open it.
+  $('#lock-phase').textContent = phaseName(phase);
+}
+
 async function boot() {
   applyPrefs();
+  paintSky();
   setMode('signin');
 
   const resumed = await tryResume();
@@ -1918,6 +1961,8 @@ async function boot() {
       })
       .catch(() => {});
   }
+
+  dismissBoot();
 
   // Opened from a notification, or the Home Screen shortcut.
   if (state.ready) openFromLink(new URLSearchParams(location.search));
@@ -2018,4 +2063,10 @@ async function watchForUpdates() {
   setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000);
 }
 
-boot();
+boot().catch((err) => {
+  // A boot that throws must still hand over to the lock screen rather than
+  // leaving the splash up forever.
+  console.error(err);
+  dismissBoot();
+  showView('lock', { push: false });
+});
