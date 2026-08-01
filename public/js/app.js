@@ -106,9 +106,21 @@ const SCREENS = {
   settings: '#screen-settings',
 };
 
+/*
+ * How deep each screen sits. Going deeper slides in from the right, coming
+ * back slides from the left — the direction carries the sense of where you
+ * are, which a plain crossfade throws away.
+ */
+const DEPTH = { lock: 0, journal: 1, patterns: 2, tonight: 2, settings: 2, compose: 2 };
+let lastDepth = 0;
+
 function showView(view, { push = true } = {}) {
   const base = view === 'compose' ? 'journal' : view;
   currentView = view;
+
+  const depth = DEPTH[view] ?? 1;
+  document.body.dataset.nav = depth < lastDepth ? 'back' : 'forward';
+  lastDepth = depth;
   // Lets the stylesheet treat the sky differently where there is a lot of
   // text to read versus where it is the whole point of the screen.
   document.body.dataset.view = base;

@@ -23,7 +23,8 @@
     "stub:push": "node test/push-stub.mjs",
     "vapid": "node scripts/vapid-keys.mjs",
     "test:update": "node test/update.test.mjs",
-    "test:tonight": "node test/tonight.test.mjs"
+    "test:tonight": "node test/tonight.test.mjs",
+    "test:responsive": "node test/responsive.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

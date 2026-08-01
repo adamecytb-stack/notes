@@ -159,6 +159,9 @@ export function starfield(node, { count = 90, night = Date.now() } = {}) {
     star.style.setProperty('--twinkle', `${(6 + rand() * 10).toFixed(1)}s`);
     star.style.setProperty('--offset', `${(rand() * 10).toFixed(1)}s`);
     star.style.setProperty('--peak', (0.25 + rand() * 0.6).toFixed(2));
+    // Staggered by height so the sky fills downwards, the way the eye expects
+    // light to arrive, rather than switching on all at once.
+    star.style.setProperty('--settle', `${(0.1 + (y / 160) * 0.7).toFixed(2)}s`);
     svg.appendChild(star);
   }
 
