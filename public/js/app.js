@@ -874,12 +874,37 @@ let step = 0;
  * one tap and decides which questions come later — asking it before there is
  * any typing keeps the 3am path to two taps.
  */
+let leaveTimer = null;
+
 function showStep(next) {
+  const previous = step;
   step = Math.max(0, Math.min(STEPS.length - 1, next));
 
+  /*
+   * The outgoing question leaves rather than vanishing. It is lifted out of
+   * the flow while it goes, so the incoming one can take its place at the same
+   * moment — otherwise the two would stack and the whole sheet would jump.
+   *
+   * The DOM swap is still synchronous, which matters: iOS only raises the
+   * keyboard for a focus() inside the tap that caused it, so the animation
+   * cannot be allowed to delay the step change.
+   */
+  clearTimeout(leaveTimer);
+  const back = step < previous;
   for (const section of document.querySelectorAll('.step')) {
-    section.classList.toggle('is-active', Number(section.dataset.step) === step);
+    const index = Number(section.dataset.step);
+    section.classList.remove('is-leaving', 'is-leaving-back');
+    if (index === previous && previous !== step) {
+      section.classList.add(back ? 'is-leaving-back' : 'is-leaving');
+    }
+    section.classList.toggle('is-active', index === step);
   }
+  document.querySelector('.compose').classList.toggle('is-back', back);
+  leaveTimer = setTimeout(() => {
+    for (const section of document.querySelectorAll('.step')) {
+      section.classList.remove('is-leaving', 'is-leaving-back');
+    }
+  }, 340);
 
   $('#compose-back').classList.toggle('is-hidden', step === 0);
   const last = step === STEPS.length - 1;
@@ -1138,10 +1163,22 @@ $('#q-lucid').addEventListener('click', async (e) => {
   }
   showBranch();
   mark();
-  // Answering is the whole point of this step, so move on without a second tap.
-  // Synchronously, not after a beat: iOS only raises the keyboard for a focus()
-  // that happens inside the tap itself, and the next step wants the keyboard.
-  if (step === 0) showStep(1);
+  /*
+   * Answering moves you on without a second tap — but not instantly. The
+   * button has to be seen to take the answer first, or the screen simply
+   * changes under your thumb and it reads as a glitch rather than a reply.
+   * The pressed state paints, then the step turns.
+   *
+   * Still synchronous, and that is deliberate: iOS only raises the keyboard
+   * for a focus() inside the tap that caused it, so the step change cannot be
+   * moved into a timeout. The pause is the animation on the button, not a
+   * delay before the work.
+   */
+  if (step === 0) {
+    btn.classList.add('is-taking');
+    setTimeout(() => btn.classList.remove('is-taking'), 420);
+    showStep(1);
+  }
 
   // Answering "yes" for the first time turns sharing on, since that is the
   // whole reason the two of them are doing this together.

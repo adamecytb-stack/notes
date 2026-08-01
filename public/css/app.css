@@ -318,8 +318,7 @@ body:not([data-view='lock']) .sky::after {
 .moon__lit {
   fill: url(#moon-warm);
   fill: color-mix(in srgb, var(--vellum) 82%, var(--ember));
-  filter: drop-shadow(0 0 10px rgba(232, 149, 90, 0.28))
-    drop-shadow(0 0 26px rgba(157, 180, 192, 0.18));
+  filter: drop-shadow(0 0 14px rgba(232, 149, 90, 0.22));
 }
 
 
@@ -750,24 +749,26 @@ body[data-nav='back'] .screen.is-active {
  * in a dark room. Pressing it fills — the button lights up under the thumb,
  * which is both the feedback and the point.
  */
+/*
+ * Solid, and quiet about it. The glowing outline it replaces was a nice trick
+ * once and a tic by the fifth time you saw it; a button should be a shape you
+ * can hit, not a light source. The press is where the life is: it sinks,
+ * darkens a shade, and comes back.
+ */
 .btn--primary {
-  background: linear-gradient(180deg, rgba(232, 149, 90, 0.2), rgba(232, 149, 90, 0.07));
-  border: 1px solid color-mix(in srgb, var(--ember) 52%, transparent);
-  color: var(--ember);
-  box-shadow: 0 0 26px rgba(232, 149, 90, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  font-variation-settings: 'opsz' 20, 'wght' 450, 'SOFT' 40, 'WONK' 1;
+  background: var(--ember);
+  border: 1px solid var(--ember);
+  color: #1a0f07;
+  font-variation-settings: 'opsz' 20, 'wght' 500, 'SOFT' 40, 'WONK' 1;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset;
+  transition: transform 0.14s var(--ease), background 0.18s var(--ease),
+    box-shadow 0.2s var(--ease);
 }
 
 .btn--primary:active {
-  background: var(--ember);
-  border-color: var(--ember);
-  color: #1a0f07;
-  box-shadow: 0 0 32px rgba(232, 149, 90, 0.38);
-}
-
-[data-theme='daybreak'] .btn--primary {
-  background: linear-gradient(180deg, rgba(180, 98, 44, 0.16), rgba(180, 98, 44, 0.06));
-  color: var(--ember-deep);
+  transform: scale(0.972);
+  background: var(--ember-deep);
+  box-shadow: none;
 }
 
 .btn--ghost {
@@ -1081,7 +1082,55 @@ body[data-nav='back'] .screen.is-active {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  animation: step-in 0.32s var(--ease-out-soft) both;
+  animation: step-in 0.34s var(--ease-out-soft) 0.07s backwards;
+}
+
+.compose.is-back .step.is-active {
+  animation-name: step-in-back;
+}
+
+/*
+ * The question on its way out. Lifted from the flow so the incoming one can
+ * take the same space at the same time — otherwise they stack and the sheet
+ * lurches.
+ */
+.step.is-leaving,
+.step.is-leaving-back {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.step.is-leaving {
+  animation: step-out 0.2s var(--ease) forwards;
+}
+
+.step.is-leaving-back {
+  animation: step-out-back 0.2s var(--ease) forwards;
+}
+
+@keyframes step-out {
+  to {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0);
+  }
+}
+
+@keyframes step-out-back {
+  to {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0);
+  }
+}
+
+@keyframes step-in-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-22px, 0, 0);
+  }
 }
 
 /* The long ones start at the top instead, or their first question is cut off. */
@@ -1092,7 +1141,7 @@ body[data-nav='back'] .screen.is-active {
 @keyframes step-in {
   from {
     opacity: 0;
-    transform: translateX(8px);
+    transform: translate3d(22px, 0, 0);
   }
 }
 
@@ -1252,7 +1301,29 @@ body[data-nav='back'] .screen.is-active {
 }
 
 .chip:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
+  background: var(--ink-high);
+}
+
+/* Every tappable thing sinks a little. Consistency here is most of what makes
+   an interface feel built rather than assembled. */
+.toggle:active,
+.face:active,
+.scale__dot:active,
+.iconbtn:active,
+.act:active,
+.mantra:active,
+.entry:active {
+  transform: scale(0.975);
+}
+
+.toggle,
+.face,
+.scale__dot,
+.iconbtn,
+.entry {
+  transition: transform 0.14s var(--ease), background 0.2s var(--ease),
+    border-color 0.2s var(--ease), opacity 0.2s var(--ease);
 }
 
 .chip[aria-pressed='true'] {
@@ -1287,14 +1358,35 @@ body[data-nav='back'] .screen.is-active {
 }
 
 .choice button:active {
-  transform: scale(0.975);
+  transform: scale(0.955);
+  background: var(--ink-high);
+}
+
+/*
+ * The moment the answer lands. A quick swell before the screen turns, so the
+ * button is visibly what caused it rather than the change happening under
+ * your thumb by coincidence.
+ */
+.choice button.is-taking {
+  animation: taken 0.42s var(--ease-out-soft);
+}
+
+@keyframes taken {
+  0% {
+    transform: scale(0.955);
+  }
+  45% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .choice button[aria-pressed='true'] {
   background: var(--ember);
   border-color: var(--ember);
   color: #1a0f07;
-  box-shadow: 0 6px 22px var(--ember-glow);
 }
 
 /* 1–5 scale */
@@ -1456,7 +1548,6 @@ body[data-nav='back'] .screen.is-active {
 .starmap__star.is-logged {
   opacity: 0.75;
   fill: var(--moon);
-  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--moon) 60%, transparent));
   animation: twinkle 5s var(--ease) infinite;
   animation-delay: var(--delay, 0s);
 }
@@ -1464,7 +1555,7 @@ body[data-nav='back'] .screen.is-active {
 .starmap__star.is-lucid {
   opacity: 1;
   fill: var(--ember);
-  filter: drop-shadow(0 0 5px var(--ember)) drop-shadow(0 0 12px var(--ember-glow));
+  filter: drop-shadow(0 0 6px rgba(232, 149, 90, 0.5));
   animation: burn 3.4s var(--ease) infinite;
   animation-delay: var(--delay, 0s);
 }
@@ -1628,21 +1719,19 @@ body[data-nav='back'] .screen.is-active {
   width: 100%;
   min-height: 3.5rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ember) 55%, transparent);
-  background: linear-gradient(180deg, rgba(232, 149, 90, 0.24), rgba(232, 149, 90, 0.09));
-  color: var(--ember);
-  font-variation-settings: 'opsz' 16, 'wght' 500, 'SOFT' 30, 'WONK' 0;
+  border: 0;
+  background: var(--ember);
+  color: #1a0f07;
+  font-variation-settings: 'opsz' 16, 'wght' 520, 'SOFT' 30, 'WONK' 0;
   font-size: 1.0625rem;
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.4), 0 0 30px rgba(232, 149, 90, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: background 0.2s var(--ease), box-shadow 0.25s var(--ease), transform 0.16s var(--ease);
+  /* One shadow, and it is a shadow — the bar is lifted off the page, not lit. */
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: transform 0.14s var(--ease), background 0.18s var(--ease);
 }
 
 .record:active {
-  background: var(--ember);
-  color: #1a0f07;
-  transform: scale(0.985);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 40px rgba(232, 149, 90, 0.4);
+  background: var(--ember-deep);
+  transform: scale(0.978);
 }
 
 /* ================================================================= SHEET */
@@ -1694,18 +1783,47 @@ body[data-nav='back'] .screen.is-active {
   flex-direction: column;
   padding: 0.5rem var(--pad) 0;
   overflow-y: auto;
+  position: relative; /* the outgoing step is absolute inside this */
+}
+
+/*
+ * The capture flow is a conversation — one question at a time, and an answer
+ * back. So the answers look like answers: bubbles, tailed towards you, warmer
+ * than the page they sit on. Asymmetric corners are what make a rounded
+ * rectangle read as speech rather than as a form field.
+ */
+.compose__title,
+.compose__body {
+  width: 100%;
+  background: linear-gradient(180deg, var(--ink-high), var(--ink-raise));
+  border: 1px solid var(--rule-strong);
+  border-radius: 22px 22px 8px 22px;
+  padding: 1rem 1.15rem;
+  caret-color: var(--ember);
+  transition: border-color 0.25s var(--ease), background 0.25s var(--ease),
+    transform 0.2s var(--ease-out-soft);
+  animation: bubble-in 0.42s var(--ease-out-soft) 0.12s backwards;
+}
+
+.compose__title:focus,
+.compose__body:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--ember) 45%, transparent);
+  background: linear-gradient(180deg, var(--ink-high), var(--ink-high));
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
 }
 
 .compose__title {
-  width: 100%;
-  background: none;
-  border: 0;
-  padding: 0.35rem 0;
-  font-variation-settings: 'opsz' 60, 'wght' 380, 'SOFT' 50, 'WONK' 1;
-  font-size: 1.625rem;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  caret-color: var(--ember);
+  font-variation-settings: 'opsz' 40, 'wght' 380, 'SOFT' 50, 'WONK' 1;
+  font-size: 1.375rem;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
 }
 
 .compose__title::placeholder {
@@ -1718,26 +1836,17 @@ body[data-nav='back'] .screen.is-active {
 }
 
 .compose__body {
-  flex: 1;
-  width: 100%;
-  min-height: 45vh;
-  background: none;
-  border: 0;
+  flex: 0 1 auto;
+  min-height: 34vh;
   resize: none;
-  padding: 0.5rem 0 2rem;
   font-size: 1.0625rem;
   line-height: 1.68;
   font-variation-settings: 'opsz' 14, 'wght' 350, 'SOFT' 0, 'WONK' 1;
-  caret-color: var(--ember);
 }
 
 .compose__body::placeholder {
   color: var(--vellum-faint);
   opacity: 0.55;
-}
-
-.compose__body:focus {
-  outline: none;
 }
 
 .sheet__foot {
@@ -2417,7 +2526,6 @@ input.row__value[type='time']::-webkit-calendar-picker-indicator {
 
 .pip.is-lit {
   background: var(--ember);
-  box-shadow: 0 0 8px var(--ember-glow);
 }
 
 /* the dream to go back into */
