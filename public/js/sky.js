@@ -36,14 +36,14 @@ export const illumination = (phase) => (1 - Math.cos(2 * Math.PI * phase)) / 2;
 export function phaseName(phase) {
   const eighth = Math.floor(((phase + 1 / 16) % 1) * 8) % 8;
   return [
-    'New moon',
-    'Waxing crescent',
-    'First quarter',
-    'Waxing gibbous',
-    'Full moon',
-    'Waning gibbous',
-    'Last quarter',
-    'Waning crescent',
+    'Nov',
+    'Dorastajúci kosáčik',
+    'Prvá štvrť',
+    'Dorastajúci mesiac',
+    'Spln',
+    'Cúvajúci mesiac',
+    'Posledná štvrť',
+    'Cúvajúci kosáčik',
   ][eighth];
 }
 
@@ -92,7 +92,7 @@ export function moonSvg(size = 64, phase = moonPhase()) {
   svg.setAttribute('height', String(size));
   svg.setAttribute('class', 'moon');
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `${phaseName(phase)} tonight`);
+  svg.setAttribute('aria-label', `${phaseName(phase)} dnes v noci`);
 
   // The unlit disc stays faintly visible — earthshine, and it stops a thin
   // crescent reading as a stray comma.

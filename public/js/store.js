@@ -387,7 +387,7 @@ export function exportText() {
   return sortedEntries()
     .map((e) => {
       const d = new Date(e.dreamedAt);
-      const stamp = d.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+      const stamp = d.toLocaleString('sk-SK', { dateStyle: 'full', timeStyle: 'short' });
       return `${stamp}\n${e.title ? e.title + '\n' : ''}\n${e.body}\n\n${'—'.repeat(24)}\n`;
     })
     .join('\n');

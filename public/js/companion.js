@@ -29,7 +29,7 @@ export function revokeConsent() {
 /* ------------------------------------------------------- prompt assembly  */
 
 const dateLine = (ts) =>
-  new Date(ts).toLocaleString(undefined, {
+  new Date(ts).toLocaleString('sk-SK', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -40,32 +40,32 @@ const dateLine = (ts) =>
 /** Renders one dream as plain text. Empty fields are dropped, not sent blank. */
 function renderEntry(raw, { full = true } = {}) {
   const e = normalise(raw);
-  const lines = [`--- ${dateLine(raw.dreamedAt)}${e.lucid ? '  [LUCID]' : ''}`];
+  const lines = [`--- ${dateLine(raw.dreamedAt)}${e.lucid ? '  [LUCIDNÝ]' : ''}`];
 
-  if (e.title) lines.push(`Title: ${e.title}`);
+  if (e.title) lines.push(`Názov: ${e.title}`);
   if (full && e.body) lines.push(e.body);
   else if (e.body) lines.push(e.body.slice(0, 400));
 
-  if (e.vividness) lines.push(`Vividness: ${e.vividness}/5`);
-  if (e.signs.length) lines.push(`Odd things noticed: ${e.signs.join('; ')}`);
-  if (e.theme) lines.push(`What it seemed to be about: ${e.theme}`);
+  if (e.vividness) lines.push(`Živosť: ${e.vividness}/5`);
+  if (e.signs.length) lines.push(`Všimnuté zvláštnosti: ${e.signs.join('; ')}`);
+  if (e.theme) lines.push(`O čom to podľa mňa bolo: ${e.theme}`);
 
   if (e.lucid) {
-    if (e.trigger) lines.push(`Became aware because: ${e.trigger}`);
-    if (e.priorActivity) lines.push(`Was doing just before: ${e.priorActivity}`);
-    if (e.actions) lines.push(`Once aware, did: ${e.actions}`);
-    if (e.excitement) lines.push(`Excitement: ${e.excitement}/5`);
-    if (e.duration) lines.push(`Lasted: ${e.duration}`);
-    if (e.ending) lines.push(`Ended: ${e.ending}`);
+    if (e.trigger) lines.push(`Uvedomil som si to vďaka: ${e.trigger}`);
+    if (e.priorActivity) lines.push(`Tesne predtým som robil: ${e.priorActivity}`);
+    if (e.actions) lines.push(`Keď som to vedel, robil som: ${e.actions}`);
+    if (e.excitement) lines.push(`Vzrušenie: ${e.excitement}/5`);
+    if (e.duration) lines.push(`Trvalo: ${e.duration}`);
+    if (e.ending) lines.push(`Skončilo: ${e.ending}`);
   }
 
   const env = [];
-  if (e.env.place) env.push(`slept at ${e.env.place}`);
-  if (e.env.bedtime) env.push(`bedtime ${e.env.bedtime}`);
-  if (e.env.wokeInNight) env.push('woke during the night');
+  if (e.env.place) env.push(`spal som: ${e.env.place}`);
+  if (e.env.bedtime) env.push(`išiel som spať o ${e.env.bedtime}`);
+  if (e.env.wokeInNight) env.push('v noci som sa zobudil');
   if (e.env.substances.length) env.push(e.env.substances.join(', ').toLowerCase());
-  if (env.length) lines.push(`Context: ${env.join('; ')}`);
-  if (e.env.notes) lines.push(`Notes: ${e.env.notes}`);
+  if (env.length) lines.push(`Okolnosti: ${env.join('; ')}`);
+  if (e.env.notes) lines.push(`Poznámky: ${e.env.notes}`);
 
   return lines.join('\n');
 }
@@ -73,16 +73,16 @@ function renderEntry(raw, { full = true } = {}) {
 function statsBlock(entries) {
   const s = computeStats(entries);
   const parts = [
-    `${s.total} dreams recorded across ${s.nightsLogged} nights.`,
-    `${s.lucidCount} were lucid (${s.lucidRate}%).`,
-    `Current streak ${s.streak} nights, longest ${s.longest}.`,
+    `${s.total} zapísaných snov za ${s.nightsLogged} nocí.`,
+    `${s.lucidCount} z nich bolo lucidných (${s.lucidRate} %).`,
+    `Aktuálna séria ${s.streak} nocí, najdlhšia ${s.longest}.`,
   ];
 
   const env = environmentInsights(entries);
   if (env.length) {
     parts.push(
-      'Lucidity rate by condition (only conditions seen 3+ times): ' +
-        env.map((e) => `${e.label} ${e.rate}% of ${e.total}`).join('; '),
+      'Miera lucidity podľa okolností (len okolnosti videné 3× a viac): ' +
+        env.map((e) => `${e.label} ${e.rate} % z ${e.total}`).join('; '),
     );
   }
 
@@ -90,7 +90,7 @@ function statsBlock(entries) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([name, n]) => `${name} (${n})`);
-  if (signs.length) parts.push(`Most frequent odd elements: ${signs.join('; ')}`);
+  if (signs.length) parts.push(`Najčastejšie zvláštnosti: ${signs.join('; ')}`);
 
   return parts.join('\n');
 }
@@ -98,14 +98,14 @@ function statsBlock(entries) {
 /** A reading of the single dream just written. */
 export function buildEntryPrompt(entry, allEntries) {
   return [
-    'I just wrote this dream down. Read it and tell me what is useful for getting lucid.',
+    'Práve som si zapísal tento sen. Prečítaj si ho a povedz mi, čo je z neho užitočné pre lucidné snívanie.',
     '',
     renderEntry(entry),
     '',
-    'For context, here is where I am overall:',
+    'Pre kontext, takto na tom celkovo som:',
     statsBlock(allEntries),
     '',
-    'Keep it short — a few sentences. Focus on anything in THIS dream that could become a dream sign or an awareness trigger.',
+    'Buď stručný — pár viet. Sústreď sa na to, čo v TOMTO sne by sa mohlo stať znakom sna alebo spúšťačom uvedomenia.',
   ].join('\n');
 }
 
@@ -114,16 +114,16 @@ export function buildPatternPrompt(allEntries) {
   const recent = [...allEntries].sort((a, b) => b.dreamedAt - a.dreamedAt).slice(0, PATTERN_WINDOW);
 
   return [
-    'Go through my dream journal and tell me what patterns you see.',
+    'Prejdi môj snový denník a povedz mi, aké vzorce v ňom vidíš.',
     '',
-    'Overall:',
+    'Celkovo:',
     statsBlock(allEntries),
     '',
-    `Here are my last ${recent.length} dreams, newest first:`,
+    `Tu je mojich posledných ${recent.length} snov, od najnovšieho:`,
     '',
     recent.map((e) => renderEntry(e)).join('\n\n'),
     '',
-    'What I want to know: which recurring elements are worth training as dream signs, what route into awareness seems to work for me specifically, and whether anything about my conditions correlates with getting lucid. Be honest if there is not enough data yet.',
+    'Chcem vedieť: ktoré opakujúce sa prvky sa oplatí trénovať ako znaky sna, ktorá cesta k uvedomeniu funguje konkrétne mne, a či niektoré okolnosti súvisia s tým, že sa mi podarí zlucidnieť. Buď úprimný, ak zatiaľ nie je dosť dát.',
   ].join('\n');
 }
 
@@ -133,17 +133,17 @@ export function buildRoutinePrompt(allEntries) {
     .slice(0, 60)
     .map((e) => {
       const d = new Date(e.dreamedAt);
-      return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${e.lucid ? ' (lucid)' : ''}`;
+      return `${d.toLocaleDateString('sk-SK', { weekday: 'short' })} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${e.lucid ? ' (lucidný)' : ''}`;
     })
     .join(', ');
 
   return [
-    'These are the times I woke up and recorded a dream, most recent first:',
+    'Toto sú časy, kedy som sa zobudil a zapísal si sen, od najnovšieho:',
     times,
     '',
     statsBlock(allEntries),
     '',
-    'Based on when I actually seem to be dreaming and waking, when should I go to sleep, and when would a wake-back-to-bed attempt land in my best REM window? Give me specific times, and say what you are inferring them from.',
+    'Podľa toho, kedy naozaj snívam a budím sa — kedy by som mal chodiť spať a kedy by mi pokus o prebudenie a späť do postele padol do najlepšieho REM okna? Daj mi konkrétne časy a povedz, z čoho ich vyvodzuješ.',
   ].join('\n');
 }
 
@@ -153,14 +153,14 @@ export class CompanionError extends Error {}
 
 export async function ask(prompt) {
   if (!hasConsented()) {
-    throw new CompanionError('The dream companion is switched off in Settings.');
+    throw new CompanionError('Snový spoločník je v Nastaveniach vypnutý.');
   }
   try {
     const res = await api.ai(prompt);
     return res;
   } catch (err) {
     throw new CompanionError(
-      err?.status === 0 ? 'No connection — the companion needs the internet.' : err.message,
+      err?.status === 0 ? 'Bez pripojenia — spoločník potrebuje internet.' : err.message,
     );
   }
 }

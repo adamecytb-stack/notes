@@ -97,12 +97,12 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   check('lucid branch opens', await page.isVisible('#branch-lucid'));
   check('ordinary branch stays closed', await page.isHidden('#branch-ordinary'));
 
-  await page.click('#q-trigger button:has-text("Something did not make logical sense")');
+  await page.click('#q-trigger button:has-text("Niečo nedávalo logický zmysel")');
   await page.fill('#q-prior', 'Trying to read a sign that kept changing');
   await page.fill('#q-actions', 'Looked at my hands, then flew straight up');
   await page.click('#q-excitement button:nth-child(5)');
-  await page.click('#q-duration button:has-text("A few minutes")');
-  await page.click('#q-ending button:has-text("I woke straight up")');
+  await page.click('#q-duration button:has-text("Pár minút")');
+  await page.click('#q-ending button:has-text("Hneď som sa zobudil")');
   await page.click('#q-vividness button:nth-child(4)');
   await page.waitForTimeout(300);
 
@@ -110,14 +110,14 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.click('#compose-next');
   await page.waitForTimeout(300);
   const tipTitle = await page.textContent('#tip-title');
-  check('tip responds to how the dream ended', /rub your hands|stay still/i.test(tipTitle),
+  check('tip responds to how the dream ended', /pošúchaj si dlane|ostaň bez pohybu/i.test(tipTitle),
     `(saw: "${tipTitle}")`);
   check('the last step offers Keep, not Next',
-    (await page.textContent('#compose-next')).trim() === 'Keep');
+    (await page.textContent('#compose-next')).trim() === 'Uložiť');
 
-  await page.click('#q-place button:has-text("A friend\'s")');
+  await page.click('#q-place button:has-text("U kamaráta")');
   await page.click('#q-woke');
-  await page.click('#q-substances button:has-text("Caffeine")');
+  await page.click('#q-substances button:has-text("Kofeín")');
   await page.waitForTimeout(2600); // let the encrypted autosave land
 
   await page.click('#compose-next');
@@ -144,7 +144,7 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
 
   await goToStep(page, 'detail');
   check('trigger reloaded',
-    (await page.getAttribute('#q-trigger button:has-text("Something did not make logical sense")', 'aria-pressed')) === 'true');
+    (await page.getAttribute('#q-trigger button:has-text("Niečo nedávalo logický zmysel")', 'aria-pressed')) === 'true');
   check('free text reloaded', (await page.inputValue('#q-actions')).includes('flew straight up'));
   check('excitement reloaded',
     (await page.getAttribute('#q-excitement button:nth-child(5)', 'aria-pressed')) === 'true');
@@ -181,7 +181,7 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   check('ordinary branch opens', await page.isVisible('#branch-ordinary'));
   check('lucid branch stays closed', await page.isHidden('#branch-lucid'));
 
-  await page.click('#q-signs button:has-text("A place that was two places at once")');
+  await page.click('#q-signs button:has-text("Miesto, ktoré bolo dvoma miestami naraz")');
   await page.waitForTimeout(2600);
   await keepDream(page);
   await page.waitForTimeout(1000);

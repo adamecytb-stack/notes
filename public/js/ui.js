@@ -40,12 +40,14 @@ export function nightLabel(nightKey, now = Date.now()) {
   const today = nightOf(now);
   const beforeNoon = new Date(now).getHours() < 12;
 
-  if (nightKey === today) return beforeNoon ? 'Last night' : 'Tonight';
-  if (nightKey === today - DAY) return beforeNoon ? 'The night before' : 'Last night';
+  if (nightKey === today) return beforeNoon ? 'Minulú noc' : 'Dnes v noci';
+  if (nightKey === today - DAY) return beforeNoon ? 'Predminulú noc' : 'Minulú noc';
 
   const d = new Date(nightKey);
   const sameYear = d.getFullYear() === new Date(now).getFullYear();
-  return d.toLocaleDateString(undefined, {
+  // Pinned to 'sk' rather than the device locale: the app is Slovak, and a
+  // phone set to English would otherwise print English month names into it.
+  return d.toLocaleDateString('sk-SK', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -53,27 +55,30 @@ export function nightLabel(nightKey, now = Date.now()) {
   });
 }
 
-/** { hour: "3·14", meridiem: "am" } */
+/**
+ * { hour: "3", minute: "14" } — 24-hour, because that is how the time is
+ * written and said in Slovak. There is no meridiem to show.
+ */
 export function clockParts(ts) {
   const d = new Date(ts);
-  let h = d.getHours();
-  const meridiem = h < 12 ? 'am' : 'pm';
-  h = h % 12 || 12;
-  return { hour: String(h), minute: String(d.getMinutes()).padStart(2, '0'), meridiem };
+  return {
+    hour: String(d.getHours()),
+    minute: String(d.getMinutes()).padStart(2, '0'),
+  };
 }
 
 export function greeting(now = Date.now()) {
   const h = new Date(now).getHours();
-  if (h < 5) return 'The small hours';
-  if (h < 8) return 'First light';
-  if (h < 12) return 'Morning';
-  if (h < 17) return 'Afternoon';
-  if (h < 21) return 'Evening';
-  return 'Good night';
+  if (h < 5) return 'Hlboká noc';
+  if (h < 8) return 'Svitá';
+  if (h < 12) return 'Dobré ráno';
+  if (h < 17) return 'Dobrý deň';
+  if (h < 21) return 'Dobrý večer';
+  return 'Dobrú noc';
 }
 
 export function fullStamp(ts) {
-  return new Date(ts).toLocaleString(undefined, {
+  return new Date(ts).toLocaleString('sk-SK', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',

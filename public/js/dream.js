@@ -47,15 +47,79 @@ export function emptyEntry() {
   };
 }
 
+/*
+ * The app used to be in English, and the answers you tapped were stored as the
+ * English sentence itself — inside the encrypted payload, on the server, where
+ * nothing can rewrite them. So they are translated on the way out instead.
+ *
+ * Without this, every dream written before the app was Slovak would open with
+ * its chips unselected, its dream signs counted as separate things from the
+ * identical Slovak ones, and its tips silently never firing. It looks exactly
+ * like data loss, and there is no way to tell the difference from inside.
+ */
+const LEGACY = {
+  'Something impossible felt normal': 'Niečo nemožné mi prišlo úplne normálne',
+  'A place that was two places at once': 'Miesto, ktoré bolo dvoma miestami naraz',
+  'Someone who should not have been there': 'Niekto, kto tam nemal čo robiť',
+  'Text or numbers that would not hold still': 'Text alebo čísla, ktoré neostávali rovnaké',
+  'Flying, floating, or falling': 'Lietanie, vznášanie sa alebo pád',
+  'Teeth, hair, or my body changing': 'Zuby, vlasy alebo moje telo sa menili',
+  'Being chased or watched': 'Niekto ma naháňal alebo sledoval',
+  'Back at school or an old job': 'Späť v škole alebo v starej robote',
+  'A house with a room that should not exist': 'Dom s miestnosťou, ktorá tam nemá byť',
+  'Losing something I could not find': 'Stratil som niečo, čo som nevedel nájsť',
+  'Technology behaving strangely': 'Technika sa správala čudne',
+  'Water — swimming, flooding, drowning': 'Voda — plávanie, záplava, topenie',
+
+  'Something did not make logical sense': 'Niečo nedávalo logický zmysel',
+  'I did a reality check out of habit': 'Zo zvyku som si spravil test reality',
+  'I recognised a recurring dream sign': 'Spoznal som opakujúci sa znak sna',
+  'The dream got unusually vivid': 'Sen bol nezvyčajne živý',
+  'I nearly woke up and slipped back in': 'Skoro som sa zobudil a skĺzol späť dnu',
+  'Someone in the dream told me': 'Niekto v sne mi to povedal',
+  'I just knew, with no reason': 'Jednoducho som to vedel, bez dôvodu',
+
+  Seconds: 'Sekundy',
+  'Under a minute': 'Menej ako minútu',
+  'A few minutes': 'Pár minút',
+  'Long — 10 min or more': 'Dlho — 10 minút a viac',
+
+  'I woke straight up': 'Hneď som sa zobudil',
+  'It faded and I lost awareness': 'Vyblednul a stratil som uvedomenie',
+  'I stayed in but stopped being lucid': 'Ostal som v ňom, ale prestal som byť lucidný',
+  'I chose to wake up': 'Rozhodol som sa zobudiť',
+
+  Home: 'Doma',
+  "A friend's": 'U kamaráta',
+  'Somewhere new': 'Niekde nové',
+  Travelling: 'Na cestách',
+
+  Caffeine: 'Kofeín',
+  Alcohol: 'Alkohol',
+  'Late meal': 'Neskoré jedlo',
+  'Screen right before bed': 'Obrazovka tesne pred spaním',
+  None: 'Nič',
+};
+
+const sk = (v) => (typeof v === 'string' && LEGACY[v]) || v;
+
 /** Fills in anything missing so v1 entries and partial saves render safely. */
 export function normalise(payload) {
   const base = emptyEntry();
   if (!payload || typeof payload !== 'object') return base;
+  const env = { ...base.env, ...(payload.env || {}) };
   return {
     ...base,
     ...payload,
-    signs: Array.isArray(payload.signs) ? payload.signs : [],
-    env: { ...base.env, ...(payload.env || {}) },
+    trigger: sk(payload.trigger),
+    duration: sk(payload.duration),
+    ending: sk(payload.ending),
+    signs: Array.isArray(payload.signs) ? payload.signs.map(sk) : [],
+    env: {
+      ...env,
+      place: sk(env.place),
+      substances: Array.isArray(env.substances) ? env.substances.map(sk) : [],
+    },
   };
 }
 
@@ -67,42 +131,55 @@ export function normalise(payload) {
  * a personal dream sign worth reality-checking against.
  */
 export const DREAM_SIGNS = [
-  'Something impossible felt normal',
-  'A place that was two places at once',
-  'Someone who should not have been there',
-  'Text or numbers that would not hold still',
-  'Flying, floating, or falling',
-  'Teeth, hair, or my body changing',
-  'Being chased or watched',
-  'Back at school or an old job',
-  'A house with a room that should not exist',
-  'Losing something I could not find',
-  'Technology behaving strangely',
-  'Water — swimming, flooding, drowning',
+  'Niečo nemožné mi prišlo úplne normálne',
+  'Miesto, ktoré bolo dvoma miestami naraz',
+  'Niekto, kto tam nemal čo robiť',
+  'Text alebo čísla, ktoré neostávali rovnaké',
+  'Lietanie, vznášanie sa alebo pád',
+  'Zuby, vlasy alebo moje telo sa menili',
+  'Niekto ma naháňal alebo sledoval',
+  'Späť v škole alebo v starej robote',
+  'Dom s miestnosťou, ktorá tam nemá byť',
+  'Stratil som niečo, čo som nevedel nájsť',
+  'Technika sa správala čudne',
+  'Voda — plávanie, záplava, topenie',
 ];
 
 export const LUCID_TRIGGERS = [
-  'Something did not make logical sense',
-  'I did a reality check out of habit',
-  'I recognised a recurring dream sign',
-  'The dream got unusually vivid',
-  'I nearly woke up and slipped back in',
-  'Someone in the dream told me',
-  'I just knew, with no reason',
+  'Niečo nedávalo logický zmysel',
+  'Zo zvyku som si spravil test reality',
+  'Spoznal som opakujúci sa znak sna',
+  'Sen bol nezvyčajne živý',
+  'Skoro som sa zobudil a skĺzol späť dnu',
+  'Niekto v sne mi to povedal',
+  'Jednoducho som to vedel, bez dôvodu',
 ];
 
-export const DURATIONS = ['Seconds', 'Under a minute', 'A few minutes', 'Long — 10 min or more'];
+export const DURATIONS = ['Sekundy', 'Menej ako minútu', 'Pár minút', 'Dlho — 10 minút a viac'];
 
 export const ENDINGS = [
-  'I woke straight up',
-  'It faded and I lost awareness',
-  'I stayed in but stopped being lucid',
-  'I chose to wake up',
+  'Hneď som sa zobudil',
+  'Vyblednul a stratil som uvedomenie',
+  'Ostal som v ňom, ale prestal som byť lucidný',
+  'Rozhodol som sa zobudiť',
 ];
 
-export const PLACES = ['Home', "A friend's", 'Somewhere new', 'Travelling'];
+export const PLACES = ['Doma', 'U kamaráta', 'Niekde nové', 'Na cestách'];
 
-export const SUBSTANCES = ['Caffeine', 'Alcohol', 'Late meal', 'Screen right before bed', 'None'];
+export const SUBSTANCES = ['Kofeín', 'Alkohol', 'Neskoré jedlo', 'Obrazovka tesne pred spaním', 'Nič'];
+
+/*
+ * Tips test these by identity rather than by repeating the sentence. A literal
+ * copy of an answer inside a condition is a silent failure waiting to happen:
+ * reword the chip and the tip simply stops firing, with nothing to notice.
+ */
+export const WOKE_STRAIGHT_UP = ENDINGS[0];
+export const FADED_OUT = ENDINGS[1];
+export const SECONDS = DURATIONS[0];
+export const UNDER_A_MINUTE = DURATIONS[1];
+export const ILLOGICAL = LUCID_TRIGGERS[0];
+export const AT_A_FRIENDS = PLACES[1];
+export const WOKE_IN_NIGHT = 'Zobudil som sa v noci';
 
 /* ------------------------------------------------------------------- tips */
 
@@ -120,82 +197,82 @@ export const SUBSTANCES = ['Caffeine', 'Alcohol', 'Late meal', 'Screen right bef
 const TIPS = [
   {
     id: 'woke-immediately',
-    when: (e) => e.lucid && e.ending === 'I woke straight up',
-    title: 'Next time, stay still and rub your hands together',
-    body: 'Waking instantly is almost always excitement — the jolt pulls you out. Two things reliably hold the dream: spin slowly on the spot, or rub your palms together and stare at them. Both give your senses something to hold onto instead of the bedroom.',
+    when: (e) => e.lucid && e.ending === WOKE_STRAIGHT_UP,
+    title: 'Nabudúce ostaň bez pohybu a pošúchaj si dlane',
+    body: 'Okamžité prebudenie je takmer vždy vzrušenie — ten nával ťa vytiahne von. Dve veci sen spoľahlivo udržia: pomaly sa toč na mieste, alebo si šúchaj dlane a pozeraj sa na ne. Obe dajú tvojim zmyslom niečo, čoho sa chytia namiesto spálne.',
   },
   {
     id: 'faded',
-    when: (e) => e.lucid && e.ending === 'It faded and I lost awareness',
-    title: 'Say it out loud inside the dream',
-    body: 'Awareness leaks away quietly. Repeating "this is a dream" every few seconds, out loud in the dream, keeps it anchored. Touching things — a wall, the ground — works too.',
+    when: (e) => e.lucid && e.ending === FADED_OUT,
+    title: 'Povedz to nahlas priamo v sne',
+    body: 'Uvedomenie potichu vyprcháva. Keď každých pár sekúnd nahlas zopakuješ „toto je sen“, ukotvíš ho. Pomáha aj dotýkať sa vecí — steny, zeme.',
   },
   {
     id: 'first-lucid',
     when: (e, s) => e.lucid && s.lucidCount <= 1,
-    title: 'That was your first one here',
-    body: 'Whatever you did in the hours before this, write it in the notes below. The first few lucid dreams are the cheapest data you will ever get about what works for you.',
+    title: 'To bol tvoj prvý zapísaný',
+    body: 'Čokoľvek si robil v hodinách predtým, napíš to dole do poznámok. Prvých pár lucidných snov sú najlacnejšie dáta o tom, čo funguje práve tebe.',
   },
   {
     id: 'high-excitement',
-    when: (e) => e.lucid && e.excitement >= 4 && e.ending !== 'I woke straight up',
-    title: 'You held it despite the adrenaline',
-    body: 'Getting excited and not waking up is the hard part, and you did it. Whatever you did in those first seconds is your technique now — it is written above, so read it back before bed tonight.',
+    when: (e) => e.lucid && e.excitement >= 4 && e.ending !== WOKE_STRAIGHT_UP,
+    title: 'Udržal si ho aj napriek adrenalínu',
+    body: 'Byť nadšený a nezobudiť sa je tá ťažká časť, a ty si to dal. Čokoľvek si spravil v tých prvých sekundách, je odteraz tvoja technika — máš to napísané vyššie, tak si to dnes pred spaním prečítaj.',
   },
   {
     id: 'short',
-    when: (e) => e.lucid && (e.duration === 'Seconds' || e.duration === 'Under a minute'),
-    title: 'Length comes from stabilising, not from luck',
-    body: 'Short lucid dreams are normal early on. Before you try to do anything, spend the first few seconds stabilising: look at your hands, touch a surface, say what you are seeing. The doing can wait.',
+    when: (e) => e.lucid && (e.duration === SECONDS || e.duration === UNDER_A_MINUTE),
+    title: 'Dĺžka je o stabilizácii, nie o šťastí',
+    body: 'Krátke lucidné sny sú na začiatku normálne. Skôr než sa pustíš do čohokoľvek, venuj prvých pár sekúnd stabilizácii: pozri sa na ruky, dotkni sa nejakého povrchu, popíš nahlas, čo vidíš. Konanie počká.',
   },
   {
     id: 'logic-trigger',
-    when: (e) => e.lucid && e.trigger === 'Something did not make logical sense',
-    title: 'That is your trigger — feed it',
-    body: 'You become aware when something breaks logic. So train the noticing while awake: several times a day, when something is mildly odd or surprising, actually stop and ask whether you are dreaming. You are strengthening exactly the reflex that already works for you.',
+    when: (e) => e.lucid && e.trigger === ILLOGICAL,
+    title: 'To je tvoj spúšťač — kŕm ho',
+    body: 'Uvedomíš si to, keď niečo poruší logiku. Tak si to všímanie trénuj aj v bdení: niekoľkokrát denne, keď je niečo mierne čudné alebo prekvapivé, naozaj zastav a opýtaj sa, či nesnívaš. Posilňuješ presne ten reflex, ktorý ti už funguje.',
   },
   {
     id: 'sign-repeat',
     when: (e, s) => !e.lucid && s.topSign && e.signs.includes(s.topSign.name) && s.topSign.count >= 3,
-    title: (e, s) => `"${s.topSign.name}" keeps coming back`,
+    title: (e, s) => `„${s.topSign.name}“ sa stále vracia`,
     body: (e, s) =>
-      `That is now in ${s.topSign.count} of your dreams. It is a dream sign — the kind of thing that can tip you off from inside. Picture it before you sleep tonight and tell yourself that when you see it, you will realise you are dreaming.`,
+      `To máš už v ${s.topSign.count} snoch. Je to znak sna — presne tá vec, ktorá ťa môže upozorniť zvnútra. Dnes pred spaním si to predstav a povedz si, že keď to uvidíš, uvedomíš si, že snívaš.`,
   },
   {
     id: 'no-signs',
     when: (e) => !e.lucid && e.signs.length === 0 && (e.body || '').length > 40,
-    title: 'Anything in there that could not happen awake?',
-    body: 'Tagging the odd parts is what builds your list of dream signs. It is worth ten seconds — those tags are what you will eventually learn to notice from inside a dream.',
+    title: 'Bolo tam niečo, čo by sa v bdení stať nemohlo?',
+    body: 'Označovanie tých čudných častí ti buduje zoznam znakov sna. Stojí to za desať sekúnd — práve tieto značky sa raz naučíš všímať si zvnútra sna.',
   },
   {
     id: 'vivid-not-lucid',
     when: (e) => !e.lucid && e.vividness >= 4,
-    title: 'Vivid dreams are the ones worth reality-checking in',
-    body: 'You recall this one sharply, which means your dream recall is working. Try a reality check the moment you wake — look at your hands, check a clock twice. The habit carries into the dream over time.',
+    title: 'Práve v živých snoch sa oplatí robiť testy reality',
+    body: 'Tento si pamätáš ostro, čo znamená, že ti vybavovanie snov funguje. Skús si spraviť test reality hneď po prebudení — pozri sa na ruky, dvakrát skontroluj hodiny. Ten zvyk sa časom prenesie aj do sna.',
   },
   {
     id: 'streak',
     when: (e, s) => s.streak >= 5,
-    title: (e, s) => `${s.streak} nights in a row`,
-    body: 'Recall and lucidity climb together — people who write every morning get lucid far more often than people who write occasionally. The streak is doing real work.',
+    title: (e, s) => `${s.streak} nocí v rade`,
+    body: 'Vybavovanie a lucidita rastú spolu — ľudia, čo píšu každé ráno, zlucidnejú oveľa častejšie než tí, čo píšu občas. Tá séria robí skutočnú prácu.',
   },
   {
     id: 'friends-house',
-    when: (e) => e.env.place === "A friend's",
-    title: 'Sleeping somewhere unfamiliar helps',
-    body: 'A strange bed keeps part of your brain lightly alert, which raises your odds. Worth noting whether that holds for you — the calendar will show it after a few.',
+    when: (e) => e.env.place === AT_A_FRIENDS,
+    title: 'Spánok na neznámom mieste pomáha',
+    body: 'Cudzia posteľ drží časť mozgu zľahka v strehu, čo ti zvyšuje šance. Oplatí sa sledovať, či to platí aj u teba — kalendár to po pár nociach ukáže.',
   },
   {
     id: 'woke-in-night',
     when: (e) => e.env.wokeInNight && !e.lucid,
-    title: 'You were most of the way to the best technique',
-    body: 'Waking in the night is the setup for wake-back-to-bed: get up for 15–20 minutes, stay dim and calm, then go back with the intention of noticing. Late-cycle REM is where most lucid dreams happen.',
+    title: 'Bol si takmer pri najlepšej technike',
+    body: 'Prebudenie v noci je príprava na prebudenie a späť do postele: vstaň na 15 – 20 minút, drž tlmené svetlo a pokoj, potom si ľahni späť s úmyslom všimnúť si to. Väčšina lucidných snov sa deje v neskorom REM.',
   },
   {
     id: 'default',
     when: () => true,
-    title: 'Write it down before you move',
-    body: 'Dreams fade in about ninety seconds, and moving speeds it up. Staying still with your eyes shut for a moment, replaying the last scene, usually pulls back more than you expect.',
+    title: 'Zapíš si to skôr, než sa pohneš',
+    body: 'Sny vyblednú asi za deväťdesiat sekúnd a pohyb to ešte zrýchli. Keď chvíľu ostaneš bez pohybu so zavretými očami a prehráš si poslednú scénu, väčšinou sa ti vráti viac, než čakáš.',
   },
 ];
 
@@ -300,7 +377,7 @@ export function environmentInsights(entries) {
 
   for (const e of entries) {
     add(e.env?.place, e.lucid);
-    if (e.env?.wokeInNight) add('Woke during the night', e.lucid);
+    if (e.env?.wokeInNight) add(WOKE_IN_NIGHT, e.lucid);
     for (const s of e.env?.substances || []) add(s, e.lucid);
   }
 

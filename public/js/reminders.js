@@ -83,14 +83,14 @@ export const isStandalone = () =>
 /** Why reminders can't be switched on right now, or null if they can. */
 export function blockedReason() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return 'This browser cannot do reminders.';
+    return 'Tento prehliadač nevie robiť pripomienky.';
   }
   if (isIOS() && !isStandalone()) {
-    return 'On iPhone, add Nocturne to your Home Screen first — iOS only allows notifications for installed apps.';
+    return 'Na iPhone si Nocturne najprv pridaj na plochu — iOS povoľuje notifikácie len nainštalovaným appkám.';
   }
-  if (!push.available) return 'Reminders are not configured on this server yet.';
+  if (!push.available) return 'Pripomienky zatiaľ nie sú na tomto serveri nastavené.';
   if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-    return 'Blocked. Turn notifications back on in your phone settings.';
+    return 'Zablokované. Zapni notifikácie späť v nastaveniach telefónu.';
   }
   return null;
 }
@@ -120,7 +120,7 @@ export async function enableReminders() {
   if (blocked) throw new Error(blocked);
 
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new Error('Notifications were not allowed.');
+  if (permission !== 'granted') throw new Error('Notifikácie neboli povolené.');
 
   const reg = await navigator.serviceWorker.ready;
   const sub =
@@ -170,5 +170,5 @@ export async function disableReminders() {
 
 export async function sendTest() {
   const res = await api.pushTest();
-  if (!res.ok) throw new Error('The push service did not accept it.');
+  if (!res.ok) throw new Error('Push služba to neprijala.');
 }

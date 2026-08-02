@@ -34,16 +34,16 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.waitForTimeout(600);
   check('the Tonight screen opens', await page.isVisible('#screen-tonight.is-active'));
   check('it reads as a before-sleep screen',
-    (await page.textContent('#tonight-title')).includes('Before you sleep'));
+    (await page.textContent('#tonight-title')).includes('Pred spaním'));
   check('the wake-back-to-bed timer stays out of the way', await page.isHidden('#wbtb-panel'));
 
   const sign = (await page.textContent('#tonight-sign')).trim();
   check('it names a dream sign from the journal',
-    sign.length > 0 && sign !== 'Not enough dreams yet', `(saw: "${sign}")`);
+    sign.length > 0 && sign !== 'Zatiaľ málo snov', `(saw: "${sign}")`);
 
   const mantra = await page.textContent('#mantra-text');
   check('the intention is built from that sign',
-    /I will realise I am dreaming/.test(mantra) &&
+    /uvedomím si, že snívam/.test(mantra) &&
       mantra.toLowerCase().includes(sign.slice(0, 12).toLowerCase()),
     `(saw: "${mantra}")`);
 
@@ -52,13 +52,13 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   for (let i = 0; i < 3; i++) await page.click('#mantra');
   await page.waitForTimeout(200);
   check('each tap lights one', (await page.$$('#mantra-pips .pip.is-lit')).length === 3);
-  check('it counts out loud', /3 of 8/.test(await page.textContent('#mantra-count')));
+  check('it counts out loud', /3 z 8/.test(await page.textContent('#mantra-count')));
 
   for (let i = 0; i < 6; i++) await page.click('#mantra');
   await page.waitForTimeout(200);
   check('it caps rather than running away',
     (await page.$$('#mantra-pips .pip.is-lit')).length === 8);
-  check('and says when that is enough', /enough/i.test(await page.textContent('#mantra-count')));
+  check('and says when that is enough', /stačí/i.test(await page.textContent('#mantra-count')));
 
   console.log('\n— a dream to go back into —');
   check('one is offered', await page.isVisible('#reenter'));
@@ -74,7 +74,7 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   check('the alarm lands on the Tonight screen',
     await page.isVisible('#screen-tonight.is-active'));
   check('in wake-back-to-bed mode',
-    (await page.textContent('#tonight-title')).includes('Wake back to bed'));
+    (await page.textContent('#tonight-title')).includes('Prebudenie a späť do postele'));
   check('the timer is showing', await page.isVisible('#wbtb-panel'));
 
   const first = (await page.textContent('#wbtb-clock')).trim();
@@ -104,8 +104,8 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.waitForTimeout(700);
   check('the tally appears once checks are done', await page.isVisible('#checks-group'));
   const note = await page.textContent('#checks-note');
-  check('it counts them', /2 in the last fortnight/.test(note), `(saw: "${note}")`);
-  check('and says how many today', /2 today/.test(note));
+  check('it counts them', /2 za posledné dva týždne/.test(note), `(saw: "${note}")`);
+  check('and says how many today', /Dnes 2/.test(note));
   check('a fortnight of bars is drawn', (await page.$$('#checks-spark .spark')).length === 14);
 
   console.log('\n— a tapped reality-check notification counts too —');
@@ -114,7 +114,7 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.click('#open-patterns');
   await page.waitForTimeout(700);
   check('tapping the nudge logs one',
-    /3 in the last fortnight/.test(await page.textContent('#checks-note')));
+    /3 za posledné dva týždne/.test(await page.textContent('#checks-note')));
 
   /*
    * An installed app can be relaunched at whatever URL it was last on. If the
@@ -127,7 +127,7 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.click('#open-patterns');
   await page.waitForTimeout(700);
   check('a relaunch does not log it again',
-    /3 in the last fortnight/.test(await page.textContent('#checks-note')),
+    /3 za posledné dva týždne/.test(await page.textContent('#checks-note')),
     `(saw: "${await page.textContent('#checks-note')}")`);
 
   check('no uncaught page errors', errors.length === 0, errors.join(' | '));

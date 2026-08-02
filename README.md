@@ -2,6 +2,11 @@
 
 A private dream journal for two people. Open it, type, go back to sleep.
 
+**The app is in Slovak.** This README stays in English because it is about
+deploying and maintaining it; everything the two of you actually see — every
+question, tip, notification, and error — is Slovak, and the dream companion is
+instructed to read and reply in Slovak too.
+
 Every entry is encrypted on the phone before it leaves. The server stores
 nothing but ciphertext — it cannot read your dreams, and neither can anyone who
 gets hold of the database.

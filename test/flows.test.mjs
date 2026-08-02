@@ -37,7 +37,7 @@ const titles = (page) =>
   await page.fill('#compose-body', 'A corridor of doors that all opened onto the same beach.');
   await page.waitForTimeout(2600);
   const status = await page.textContent('#compose-status');
-  check('autosaves without pressing Keep', /Saved/.test(status), `(status: "${status}")`);
+  check('autosaves without pressing Keep', /Uložené/.test(status), `(status: "${status}")`);
   await keepDream(page);
   await page.waitForTimeout(900);
   const afterWrite = await titles(page);
@@ -84,7 +84,7 @@ const titles = (page) =>
   await page.click('#lock-submit');
   await page.waitForTimeout(3000);
   const err = await page.textContent('#lock-error');
-  check('old passphrase is rejected', /Incorrect/i.test(err), `(saw: "${err}")`);
+  check('old passphrase is rejected', /Nesprávne/i.test(err), `(saw: "${err}")`);
 
   console.log('\n— new passphrase works —');
   await page.fill('#f-passphrase', 'a-much-longer-new-passphrase');

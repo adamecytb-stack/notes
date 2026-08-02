@@ -42,7 +42,7 @@ const call = client.call.bind(client);
   console.log('\n— failure branches —');
   await new Promise((res) => setTimeout(res, 4200)); // clear the per-request gap
   r = await call('POST', '/api/ai', { prompt: 'TRIGGER_429' });
-  check('rate limit becomes a readable message', r.status === 429 && /rate-limited/i.test(r.json.error),
+  check('rate limit becomes a readable message', r.status === 429 && /preťažené/i.test(r.json.error),
     JSON.stringify(r.json));
 
   await new Promise((res) => setTimeout(res, 4200));
@@ -53,7 +53,7 @@ const call = client.call.bind(client);
   await new Promise((res) => setTimeout(res, 4200));
   r = await call('POST', '/api/ai', { prompt: 'TRIGGER_BLOCKED' });
   check('safety block is explained, not blamed on the user',
-    r.status === 422 && /nothing is wrong/i.test(r.json.error), JSON.stringify(r.json));
+    r.status === 422 && /nič zlé/i.test(r.json.error), JSON.stringify(r.json));
 
   console.log('\n— guard rails —');
   r = await call('POST', '/api/ai', { prompt: 'too soon' });
@@ -78,7 +78,7 @@ const call = client.call.bind(client);
     { cwd: process.cwd(), stdio: ['ignore', 'ignore', 'ignore'] },
   );
   r = await call('POST', '/api/ai', { prompt: 'one more' });
-  check('daily cap stops further readings', r.status === 429 && /daily limit/i.test(r.json.error),
+  check('daily cap stops further readings', r.status === 429 && /denný limit/i.test(r.json.error),
     JSON.stringify(r.json));
 
   console.log('\n— nothing is stored —');

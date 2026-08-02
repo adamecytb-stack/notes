@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
     />
     <title>Nocturne</title>
-    <meta name="description" content="A private dream journal." />
+    <meta name="description" content="Súkromný denník snov." />
 
     <meta name="theme-color" content="#0c0a09" />
     <meta name="color-scheme" content="dark light" />
@@ -115,25 +115,25 @@
       <div class="boot__inner">
         <div class="boot__moon" id="boot-moon"><span class="boot__halo"></span></div>
         <h1 class="boot__word">Nocturne</h1>
-        <p class="boot__note" id="boot-note">Opening your journal</p>
+        <p class="boot__note" id="boot-note">Otváram tvoj denník</p>
       </div>
     </div>
 
     <div class="app">
       <!-- ==================================================== LOCK ==== -->
-      <section class="screen lock" id="screen-lock" aria-label="Sign in">
+      <section class="screen lock" id="screen-lock" aria-label="Prihlásenie">
         <div class="lock__inner stagger">
           <div class="lock__moon" id="lock-moon"></div>
           <p class="lock__phase t-meta" id="lock-phase"></p>
 
           <h1 class="lock__title">Nocturne</h1>
           <p class="lock__sub" id="lock-sub">
-            Your dreams are encrypted on this phone before they ever leave it.
+            Tvoje sny sa zašifrujú v tomto telefóne skôr, než ho vôbec opustia.
           </p>
 
           <form class="lock__form" id="lock-form" autocomplete="on">
             <div class="field">
-              <label class="field__label" for="f-username">Name</label>
+              <label class="field__label" for="f-username">Meno</label>
               <input
                 class="input"
                 id="f-username"
@@ -148,7 +148,7 @@
             </div>
 
             <div class="field">
-              <label class="field__label" for="f-passphrase">Passphrase</label>
+              <label class="field__label" for="f-passphrase">Heslo</label>
               <input
                 class="input"
                 id="f-passphrase"
@@ -160,7 +160,7 @@
             </div>
 
             <div class="field hidden" id="field-setup">
-              <label class="field__label" for="f-setup">Setup code</label>
+              <label class="field__label" for="f-setup">Inštalačný kód</label>
               <input
                 class="input"
                 id="f-setup"
@@ -170,38 +170,38 @@
                 autocorrect="off"
                 spellcheck="false"
               />
-              <p class="note">The code you set when you deployed the journal.</p>
+              <p class="note">Kód, ktorý si nastavil pri nasadení denníka.</p>
             </div>
 
             <p class="error" id="lock-error" role="alert"></p>
 
             <button class="btn btn--primary btn--block" type="submit" id="lock-submit">
-              <span id="lock-submit-label">Unlock</span>
+              <span id="lock-submit-label">Odomknúť</span>
             </button>
           </form>
 
           <div class="switcher">
             <button class="btn btn--quiet" type="button" id="lock-switch">
-              First time here? Create your account
+              Prvýkrát tu? Vytvor si účet
             </button>
           </div>
         </div>
       </section>
 
       <!-- ================================================= JOURNAL ==== -->
-      <section class="screen" id="screen-journal" aria-label="Journal">
+      <section class="screen" id="screen-journal" aria-label="Denník">
         <div class="scroll" id="journal-scroll">
           <header class="masthead">
             <div class="masthead__row">
               <div>
-                <h1 class="masthead__greeting" id="greeting">Good night</h1>
+                <h1 class="masthead__greeting" id="greeting">Dobrú noc</h1>
                 <p class="masthead__count" id="entry-count"></p>
               </div>
               <div class="masthead__acts">
-                <button class="iconbtn" type="button" id="open-patterns" aria-label="Patterns">
+                <button class="iconbtn" type="button" id="open-patterns" aria-label="Vzorce">
                   <svg width="22" height="22" aria-hidden="true"><use href="#i-spark" /></svg>
                 </button>
-                <button class="iconbtn" type="button" id="open-settings" aria-label="Settings">
+                <button class="iconbtn" type="button" id="open-settings" aria-label="Nastavenia">
                   <svg width="22" height="22" aria-hidden="true"><use href="#i-gear" /></svg>
                 </button>
               </div>
@@ -210,25 +210,25 @@
 
           <div class="banner hidden" id="offline-banner">
             <span class="banner__dot"></span>
-            <span id="offline-text">Offline — your dreams are saved here and will sync later.</span>
+            <span id="offline-text">Offline — sny sa ukladajú tu a zosynchronizujú sa neskôr.</span>
           </div>
 
           <!-- The two things you can do right now, rather than after the fact. -->
           <div class="acts">
             <button class="act" type="button" id="do-check">
-              <span class="act__title">Reality check</span>
-              <span class="act__hint">Am I dreaming? Ask it properly.</span>
+              <span class="act__title">Test reality</span>
+              <span class="act__hint">Snívam? Opýtaj sa poriadne.</span>
             </button>
             <button class="act" type="button" id="open-tonight-journal">
-              <span class="act__title">Before sleep</span>
-              <span class="act__hint">Your sign, your intention.</span>
+              <span class="act__title">Pred spaním</span>
+              <span class="act__hint">Tvoj znak, tvoj úmysel.</span>
             </button>
           </div>
 
           <div class="tabs" id="tabs">
-            <button type="button" data-tab="mine" aria-pressed="true">Mine</button>
+            <button type="button" data-tab="mine" aria-pressed="true">Moje</button>
             <button type="button" data-tab="theirs" aria-pressed="false" id="tab-theirs">
-              Theirs
+              Jeho
             </button>
           </div>
 
@@ -238,72 +238,72 @@
         <div class="recordbar">
           <button class="btn record" type="button" id="record">
             <svg width="19" height="19" aria-hidden="true"><use href="#i-quill" /></svg>
-            Record a dream
+            Zapísať sen
           </button>
         </div>
       </section>
 
       <!-- ================================================ PATTERNS ==== -->
-      <section class="screen" id="screen-patterns" aria-label="Patterns">
+      <section class="screen" id="screen-patterns" aria-label="Vzorce">
         <div class="subhead">
           <button class="back" type="button" id="patterns-back">
             <svg width="8" height="14" aria-hidden="true"><use href="#i-back" /></svg>
-            Journal
+            Denník
           </button>
         </div>
 
         <div class="scroll">
           <div class="patterns">
-            <h1 class="t-screen">Patterns</h1>
+            <h1 class="t-screen">Vzorce</h1>
 
             <div class="streak" id="streak">
               <span class="streak__n" id="streak-n">0</span>
-              <span class="streak__label" id="streak-label">nights in a row</span>
+              <span class="streak__label" id="streak-label">nocí v rade</span>
             </div>
 
             <div class="tiles">
               <div class="tile">
                 <span class="tile__n" id="stat-lucid">0</span>
-                <span class="tile__label">lucid</span>
+                <span class="tile__label">lucidných</span>
               </div>
               <div class="tile">
                 <span class="tile__n" id="stat-rate">0%</span>
-                <span class="tile__label">rate</span>
+                <span class="tile__label">podiel</span>
               </div>
               <div class="tile">
                 <span class="tile__n" id="stat-total">0</span>
-                <span class="tile__label">dreams</span>
+                <span class="tile__label">snov</span>
               </div>
               <div class="tile">
                 <span class="tile__n" id="stat-longest">0</span>
-                <span class="tile__label">best run</span>
+                <span class="tile__label">najdlhšia séria</span>
               </div>
             </div>
 
             <div class="group">
-              <p class="t-meta group__label" id="cal-label">This month</p>
+              <p class="t-meta group__label" id="cal-label">Tento mesiac</p>
               <div class="cal" id="cal"></div>
               <p class="note" id="cal-note"></p>
               <div class="legend">
-                <span class="legend__item"><i class="dot dot--logged"></i> wrote something</span>
-                <span class="legend__item"><i class="dot dot--lucid"></i> lucid</span>
+                <span class="legend__item"><i class="dot dot--logged"></i> niečo som napísal</span>
+                <span class="legend__item"><i class="dot dot--lucid"></i> lucidný</span>
               </div>
             </div>
 
             <div class="group" id="signs-group">
-              <p class="t-meta group__label">Your dream signs</p>
+              <p class="t-meta group__label">Tvoje znaky sna</p>
               <p class="note" id="signs-note"></p>
               <div class="bars" id="signs"></div>
             </div>
 
             <div class="group" id="checks-group">
-              <p class="t-meta group__label">Reality checks</p>
+              <p class="t-meta group__label">Testy reality</p>
               <p class="note" id="checks-note"></p>
               <div class="sparks" id="checks-spark"></div>
             </div>
 
             <div class="group" id="cond-group">
-              <p class="t-meta group__label">What lines up with going lucid</p>
+              <p class="t-meta group__label">Čo sa zhoduje s lucidnými nocami</p>
               <p class="note" id="cond-note"></p>
               <div class="bars" id="conditions"></div>
             </div>
@@ -312,91 +312,91 @@
       </section>
 
       <!-- ================================================= TONIGHT ==== -->
-      <section class="screen" id="screen-tonight" aria-label="Tonight">
+      <section class="screen" id="screen-tonight" aria-label="Dnes v noci">
         <div class="subhead">
           <button class="back" type="button" id="tonight-back">
             <svg width="8" height="14" aria-hidden="true"><use href="#i-back" /></svg>
-            Journal
+            Denník
           </button>
         </div>
 
         <div class="scroll">
           <div class="tonight">
-            <h1 class="t-screen" id="tonight-title">Before you sleep</h1>
+            <h1 class="t-screen" id="tonight-title">Pred spaním</h1>
             <p class="tonight__lede" id="tonight-lede"></p>
 
             <div class="wbtb hidden" id="wbtb-panel">
               <p class="wbtb__clock" id="wbtb-clock">20:00</p>
               <p class="wbtb__note" id="wbtb-note">
-                Stay up, stay dim. When this runs out, go back to bed expecting to notice.
+                Ostaň hore, svetlo tlmené. Keď to dobehne, ľahni si späť s tým, že si to všimneš.
               </p>
               <button class="btn btn--primary btn--wide" type="button" id="wbtb-go">
-                I am going back in
+                Idem späť dnu
               </button>
             </div>
 
             <div class="group">
-              <p class="t-meta group__label">Your dream sign</p>
+              <p class="t-meta group__label">Tvoj znak sna</p>
               <p class="tonight__sign" id="tonight-sign"></p>
               <p class="note" id="tonight-sign-note"></p>
             </div>
 
             <div class="group">
-              <p class="t-meta group__label">Say it until you mean it</p>
+              <p class="t-meta group__label">Opakuj to, kým to nebudeš myslieť vážne</p>
               <button class="mantra" type="button" id="mantra">
                 <span class="mantra__text" id="mantra-text"></span>
-                <span class="mantra__count" id="mantra-count">Tap each time you say it</span>
+                <span class="mantra__count" id="mantra-count">Ťukni pri každom zopakovaní</span>
               </button>
               <div class="mantra__pips" id="mantra-pips"></div>
             </div>
 
             <div class="group" id="reenter-group">
-              <p class="t-meta group__label">Go back into this one</p>
+              <p class="t-meta group__label">Vráť sa do tohto sna</p>
               <p class="note" id="reenter-note">
-                Replay it as you fall asleep — and this time, notice.
+                Prehrávaj si ho, kým zaspávaš — a tentoraz si to všimni.
               </p>
               <article class="reenter" id="reenter"></article>
             </div>
 
             <button class="btn btn--primary btn--wide" type="button" id="tonight-done">
-              Good night
+              Dobrú noc
             </button>
           </div>
         </div>
       </section>
 
       <!-- ================================================ SETTINGS ==== -->
-      <section class="screen" id="screen-settings" aria-label="Settings">
+      <section class="screen" id="screen-settings" aria-label="Nastavenia">
         <div class="subhead">
           <button class="back" type="button" id="settings-back">
             <svg width="8" height="14" aria-hidden="true"><use href="#i-back" /></svg>
-            Journal
+            Denník
           </button>
         </div>
 
         <div class="scroll">
           <div class="settings">
-            <h1 class="t-screen">Settings</h1>
+            <h1 class="t-screen">Nastavenia</h1>
 
             <!-- Account -->
             <div class="group">
-              <p class="t-meta group__label">Account</p>
+              <p class="t-meta group__label">Účet</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Signed in as</p>
+                    <p class="row__title">Prihlásený ako</p>
                   </div>
                   <span class="row__value" id="set-username">—</span>
                 </div>
                 <button class="row" type="button" id="set-passphrase">
                   <span class="row__main">
-                    <span class="row__title">Change passphrase</span>
-                    <span class="row__hint">Re-encrypts every entry with the new one.</span>
+                    <span class="row__title">Zmeniť heslo</span>
+                    <span class="row__hint">Zašifruje každý záznam nanovo tým novým.</span>
                   </span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
                 <button class="row" type="button" id="set-signout">
-                  <span class="row__main"><span class="row__title">Sign out</span></span>
+                  <span class="row__main"><span class="row__title">Odhlásiť sa</span></span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
               </div>
@@ -404,18 +404,18 @@
 
             <!-- Appearance -->
             <div class="group">
-              <p class="t-meta group__label">Appearance</p>
+              <p class="t-meta group__label">Vzhľad</p>
               <div class="group__body">
                 <div class="row row--stack">
-                  <p class="row__title">Theme</p>
-                  <div class="segmented" role="group" aria-label="Theme" id="theme-seg">
+                  <p class="row__title">Motív</p>
+                  <div class="segmented" role="group" aria-label="Motív" id="theme-seg">
                     <button type="button" data-theme-value="nocturne" aria-pressed="true">Nocturne</button>
-                    <button type="button" data-theme-value="daybreak" aria-pressed="false">Daybreak</button>
-                    <button type="button" data-theme-value="auto" aria-pressed="false">Auto</button>
+                    <button type="button" data-theme-value="daybreak" aria-pressed="false">Úsvit</button>
+                    <button type="button" data-theme-value="auto" aria-pressed="false">Automaticky</button>
                   </div>
                 </div>
                 <div class="row row--stack">
-                  <p class="row__title">Text size</p>
+                  <p class="row__title">Veľkosť písma</p>
                   <div class="sizer">
                     <span class="sizer__a sizer__a--sm" aria-hidden="true">A</span>
                     <input
@@ -425,7 +425,7 @@
                       max="125"
                       step="5"
                       value="100"
-                      aria-label="Text size"
+                      aria-label="Veľkosť písma"
                     />
                     <span class="sizer__a sizer__a--lg" aria-hidden="true">A</span>
                   </div>
@@ -435,53 +435,53 @@
 
             <!-- Privacy -->
             <div class="group">
-              <p class="t-meta group__label">Privacy</p>
+              <p class="t-meta group__label">Súkromie</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Lock when I close the app</p>
+                    <p class="row__title">Zamknúť pri zavretí appky</p>
                     <p class="row__hint">
-                      Ask for the passphrase every time. Safest, but slower at 3am.
+                      Vypýtať si heslo zakaždým. Najbezpečnejšie, ale o tretej ráno pomalšie.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-autolock" aria-pressed="false" aria-label="Lock when I close the app"></button>
+                  <button class="toggle" type="button" id="set-autolock" aria-pressed="false" aria-label="Zamknúť pri zavretí appky"></button>
                 </div>
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Hide dreams in the app switcher</p>
-                    <p class="row__hint">Blurs the screen when you leave the app.</p>
+                    <p class="row__title">Skryť sny v prepínači aplikácií</p>
+                    <p class="row__hint">Rozmaže obrazovku, keď z appky odídeš.</p>
                   </div>
-                  <button class="toggle" type="button" id="set-privacy-screen" aria-pressed="true" aria-label="Hide dreams in the app switcher"></button>
+                  <button class="toggle" type="button" id="set-privacy-screen" aria-pressed="true" aria-label="Skryť sny v prepínači aplikácií"></button>
                 </div>
               </div>
             </div>
 
             <!-- Sharing -->
             <div class="group">
-              <p class="t-meta group__label">Together</p>
+              <p class="t-meta group__label">Spolu</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Share lucid dreams automatically</p>
+                    <p class="row__title">Automaticky zdieľať lucidné sny</p>
                     <p class="row__hint" id="share-hint">
-                      Only lucid ones. Ordinary dreams stay private to you.
+                      Len tie lucidné. Obyčajné sny ostávajú len tvoje.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-share" aria-pressed="true" aria-label="Share lucid dreams automatically"></button>
+                  <button class="toggle" type="button" id="set-share" aria-pressed="true" aria-label="Automaticky zdieľať lucidné sny"></button>
                 </div>
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Shared with you</p>
+                    <p class="row__title">Zdieľané s tebou</p>
                   </div>
                   <span class="row__value" id="share-count">—</span>
                 </div>
                 <button class="row hidden" type="button" id="share-repair">
                   <span class="row__main">
-                    <span class="row__title">Reconnect sharing</span>
+                    <span class="row__title">Znovu pripojiť zdieľanie</span>
                     <span class="row__hint">
-                      Rebuilds this phone's sharing key. Dreams you have already
-                      shared are sent again automatically; theirs come back when
-                      they next open the app.
+                      Znovu vytvorí kľúč tohto telefónu na zdieľanie. Sny, ktoré
+                      si už zdieľal, sa odošlú znova automaticky; jeho sa vrátia,
+                      keď si nabudúce otvorí appku.
                     </span>
                   </span>
                   <svg class="row__chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
@@ -491,79 +491,79 @@
 
             <!-- Reminders -->
             <div class="group">
-              <p class="t-meta group__label">Reminders</p>
+              <p class="t-meta group__label">Pripomienky</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Reality check reminders</p>
+                    <p class="row__title">Pripomienky na test reality</p>
                     <p class="row__hint" id="notif-hint">
-                      The habit that gets performed inside a dream. Several a day.
+                      Zvyk, ktorý sa raz vykoná aj v sne. Niekoľkokrát denne.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-notify" aria-pressed="false" aria-label="Reality check reminders"></button>
+                  <button class="toggle" type="button" id="set-notify" aria-pressed="false" aria-label="Pripomienky na test reality"></button>
                 </div>
                 <div class="row" id="notif-time-row">
                   <div class="row__main">
-                    <p class="row__title">Morning nudge</p>
-                    <p class="row__hint">To write down what you remember.</p>
+                    <p class="row__title">Ranné šťuchnutie</p>
+                    <p class="row__hint">Aby si si zapísal, čo si pamätáš.</p>
                   </div>
-                  <input class="row__value" type="time" id="notif-time" value="07:15" aria-label="Morning nudge time" />
+                  <input class="row__value" type="time" id="notif-time" value="07:15" aria-label="Ranné šťuchnutie time" />
                 </div>
                 <div class="row row--stack" id="notif-checks-row">
-                  <p class="row__title">Reality checks</p>
+                  <p class="row__title">Testy reality</p>
                   <div class="chips" id="notif-checks"></div>
-                  <p class="row__hint">Tap to turn each one off.</p>
+                  <p class="row__hint">Ťuknutím ktorýkoľvek vypneš.</p>
                 </div>
               </div>
             </div>
 
             <!-- The night itself -->
             <div class="group">
-              <p class="t-meta group__label">Tonight</p>
+              <p class="t-meta group__label">Dnes v noci</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Bedtime</p>
-                    <p class="row__hint">When you mean to be asleep. Everything below follows from it.</p>
+                    <p class="row__title">Čas spánku</p>
+                    <p class="row__hint">Kedy chceš už spať. Všetko nižšie sa od toho odvíja.</p>
                   </div>
-                  <input class="row__value" type="time" id="set-bedtime" value="23:00" aria-label="Bedtime" />
+                  <input class="row__value" type="time" id="set-bedtime" value="23:00" aria-label="Čas spánku" />
                 </div>
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Remind me before bed</p>
+                    <p class="row__title">Pripomenúť pred spaním</p>
                     <p class="row__hint" id="bednudge-hint">
-                      Twenty minutes before, to repeat your intention.
+                      Dvadsať minút predtým, nech si zopakuješ úmysel.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-bednudge" aria-pressed="false" aria-label="Remind me before bed"></button>
+                  <button class="toggle" type="button" id="set-bednudge" aria-pressed="false" aria-label="Pripomenúť pred spaním"></button>
                 </div>
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Wake me for wake-back-to-bed</p>
+                    <p class="row__title">Zobudiť ma na prebudenie a späť do postele</p>
                     <p class="row__hint" id="wbtb-hint">
-                      The best odds there are. Wakes you in late REM, five hours in.
+                      Najlepšia šanca, aká existuje. Zobudí ťa v neskorom REM, päť hodín po zaspaní.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-wbtb" aria-pressed="false" aria-label="Wake me for wake-back-to-bed"></button>
+                  <button class="toggle" type="button" id="set-wbtb" aria-pressed="false" aria-label="Zobudiť ma na prebudenie a späť do postele"></button>
                 </div>
                 <div class="row hidden" id="wbtb-time-row">
                   <div class="row__main">
-                    <p class="row__title">Wake me at</p>
-                    <p class="row__hint">Move it if five hours is not your window.</p>
+                    <p class="row__title">Zobudiť ma o</p>
+                    <p class="row__hint">Posuň to, ak päť hodín nie je tvoje okno.</p>
                   </div>
-                  <input class="row__value" type="time" id="wbtb-time" aria-label="Wake-back-to-bed time" />
+                  <input class="row__value" type="time" id="wbtb-time" aria-label="Čas prebudenia a späť do postele" />
                 </div>
                 <button class="row" type="button" id="open-tonight">
                   <span class="row__main">
-                    <span class="row__title">Run the bedtime ritual now</span>
-                    <span class="row__hint">Your dream sign, your intention, one dream to go back into.</span>
+                    <span class="row__title">Spustiť večerný rituál teraz</span>
+                    <span class="row__hint">Tvoj znak sna, tvoj úmysel, jeden sen, do ktorého sa vrátiš.</span>
                   </span>
                   <svg class="row__chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
                 <button class="row" type="button" id="notif-test">
                   <span class="row__main">
-                    <span class="row__title">Send one now</span>
-                    <span class="row__hint">Check it actually arrives on this phone.</span>
+                    <span class="row__title">Poslať jednu teraz</span>
+                    <span class="row__hint">Over, či naozaj dôjde na tento telefón.</span>
                   </span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
@@ -572,62 +572,62 @@
 
             <!-- Dream companion -->
             <div class="group">
-              <p class="t-meta group__label">Dream companion</p>
+              <p class="t-meta group__label">Snový spoločník</p>
               <div class="group__body">
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Let it read my dreams</p>
+                    <p class="row__title">Nech mi číta sny</p>
                     <p class="row__hint" id="ai-hint">
                       Off. Nothing is sent anywhere until you turn this on.
                     </p>
                   </div>
-                  <button class="toggle" type="button" id="set-ai" aria-pressed="false" aria-label="Let the companion read my dreams"></button>
+                  <button class="toggle" type="button" id="set-ai" aria-pressed="false" aria-label="Nech mi spoločník číta sny"></button>
                 </div>
                 <button class="row" type="button" id="ai-patterns">
                   <span class="row__main">
-                    <span class="row__title">Find my patterns</span>
-                    <span class="row__hint">Reads your journal for dream signs and what makes you lucid.</span>
+                    <span class="row__title">Nájdi moje vzorce</span>
+                    <span class="row__hint">Prejde tvoj denník a hľadá znaky sna a to, čo ťa robí lucidným.</span>
                   </span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
                 <button class="row" type="button" id="ai-routine">
                   <span class="row__main">
-                    <span class="row__title">When should I sleep?</span>
-                    <span class="row__hint">Works out your best wake-back-to-bed window.</span>
+                    <span class="row__title">Kedy mám ísť spať?</span>
+                    <span class="row__hint">Vypočíta tvoje najlepšie okno na prebudenie a späť do postele.</span>
                   </span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Read each dream as I write it</p>
-                    <p class="row__hint">A short note after you keep an entry.</p>
+                    <p class="row__title">Prečítať každý sen hneď po zapísaní</p>
+                    <p class="row__hint">Krátka poznámka po tom, čo záznam uložíš.</p>
                   </div>
-                  <button class="toggle" type="button" id="set-ai-auto" aria-pressed="false" aria-label="Read each dream as I write it"></button>
+                  <button class="toggle" type="button" id="set-ai-auto" aria-pressed="false" aria-label="Prečítať každý sen hneď po zapísaní"></button>
                 </div>
               </div>
             </div>
 
             <!-- Your data -->
             <div class="group">
-              <p class="t-meta group__label">Your data</p>
+              <p class="t-meta group__label">Tvoje dáta</p>
               <div class="group__body">
                 <button class="row" type="button" id="set-export-text">
                   <span class="row__main">
-                    <span class="row__title">Export as text</span>
-                    <span class="row__hint">Readable copy of every dream.</span>
+                    <span class="row__title">Exportovať ako text</span>
+                    <span class="row__hint">Čitateľná kópia každého sna.</span>
                   </span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
                 <button class="row" type="button" id="set-export-json">
                   <span class="row__main">
-                    <span class="row__title">Export as JSON</span>
-                    <span class="row__hint">For backups and moving elsewhere.</span>
+                    <span class="row__title">Exportovať ako JSON</span>
+                    <span class="row__hint">Na zálohy a presun inam.</span>
                   </span>
                   <svg class="chev" width="8" height="14" aria-hidden="true"><use href="#i-chev" /></svg>
                 </button>
                 <div class="row">
                   <div class="row__main">
-                    <p class="row__title">Stored on this device</p>
+                    <p class="row__title">Uložené v tomto zariadení</p>
                   </div>
                   <span class="row__value" id="set-storage">—</span>
                 </div>
@@ -638,8 +638,8 @@
               <div class="group__body">
                 <button class="row row--danger" type="button" id="set-delete">
                   <span class="row__main">
-                    <span class="row__title">Delete my journal</span>
-                    <span class="row__hint">Erases every entry from the server. Permanent.</span>
+                    <span class="row__title">Zmazať môj denník</span>
+                    <span class="row__hint">Vymaže každý záznam zo servera. Natrvalo.</span>
                   </span>
                 </button>
               </div>
@@ -653,11 +653,11 @@
       </section>
     </div>
 
-    <!-- =================================================== COMPOSE ==== -->    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Write a dream">
+    <!-- =================================================== COMPOSE ==== -->    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Zapísať sen">
       <div class="sheet__bar">
-        <button class="btn btn--quiet" type="button" id="compose-cancel">Done</button>
+        <button class="btn btn--quiet" type="button" id="compose-cancel">Hotovo</button>
         <button class="sheet__when" type="button" id="compose-when"></button>
-        <button class="btn btn--quiet" type="button" id="compose-delete">Delete</button>
+        <button class="btn btn--quiet" type="button" id="compose-delete">Zmazať</button>
       </div>
 
       <div class="compose" id="compose-scroll">
@@ -666,22 +666,22 @@
              first, before there is any typing to do. -->
 
         <section class="step is-active" data-step="0">
-          <h2 class="step__ask">Did you know you were dreaming?</h2>
-          <p class="step__note">While it was happening — not looking back on it now.</p>
+          <h2 class="step__ask">Vedel si, že snívaš?</h2>
+          <p class="step__note">Priamo počas sna — nie až teraz pri spomínaní.</p>
           <div class="choice choice--two" id="q-lucid">
-            <button type="button" data-lucid="yes">Yes, I was lucid</button>
-            <button type="button" data-lucid="no">No</button>
+            <button type="button" data-lucid="yes">Áno, bol som lucidný</button>
+            <button type="button" data-lucid="no">Nie</button>
           </div>
         </section>
 
         <section class="step" data-step="1">
-          <h2 class="step__ask">Give it a name</h2>
-          <p class="step__note">Whatever you would call it later. Skip if nothing comes.</p>
+          <h2 class="step__ask">Daj mu názov</h2>
+          <p class="step__note">Ako by si ho nazval neskôr. Ak nič nenapadne, preskoč.</p>
           <input
             class="compose__title"
             id="compose-title"
             type="text"
-            placeholder="The lighthouse that walked"
+            placeholder="Maják, ktorý kráčal"
             autocomplete="off"
             spellcheck="true"
             enterkeyhint="next"
@@ -689,20 +689,20 @@
         </section>
 
         <section class="step" data-step="2">
-          <h2 class="step__ask">What happened?</h2>
-          <p class="step__note">Write it messy. Fragments are fine — they fade fast.</p>
+          <h2 class="step__ask">Čo sa stalo?</h2>
+          <p class="step__note">Píš neusporiadane. Útržky stačia — rýchlo blednú.</p>
           <textarea
             class="compose__body"
             id="compose-body"
-            placeholder="I was descending past shelves that never ended…"
+            placeholder="Klesal som popri policiach, ktoré nikdy neskončili…"
             spellcheck="true"
             autocapitalize="sentences"
           ></textarea>
         </section>
 
         <section class="step" data-step="3">
-          <h2 class="step__ask">How did it feel?</h2>
-          <p class="step__note">The feeling you woke up with.</p>
+          <h2 class="step__ask">Aký to bol pocit?</h2>
+          <p class="step__note">Pocit, s ktorým si sa zobudil.</p>
           <div class="faces" id="q-mood"></div>
           <p class="faces__label" id="q-mood-label"></p>
         </section>
@@ -710,85 +710,85 @@
         <section class="step step--tall" data-step="4">
           <!-- Lucid branch -->
           <div class="hidden" id="branch-lucid">
-            <h2 class="step__ask">What tipped you off?</h2>
+            <h2 class="step__ask">Čo ťa na to upozornilo?</h2>
             <div class="chips chips--single" id="q-trigger"></div>
             <input class="input input--quiet" id="q-trigger-other" type="text"
-                   placeholder="Or describe it" autocomplete="off" />
+                   placeholder="Alebo to opíš" autocomplete="off" />
 
-            <h3 class="step__sub">What were you doing just before you knew?</h3>
+            <h3 class="step__sub">Čo si robil tesne predtým, než si to vedel?</h3>
             <textarea class="input input--quiet" id="q-prior" rows="2"
-                      placeholder="The moment before awareness arrived"></textarea>
+                      placeholder="Chvíľa tesne pred uvedomením"></textarea>
 
-            <h3 class="step__sub">What did you do once you knew?</h3>
+            <h3 class="step__sub">Čo si robil, keď si to vedel?</h3>
             <textarea class="input input--quiet" id="q-actions" rows="3"
-                      placeholder="Flew, looked at your hands, tried to change something…"></textarea>
+                      placeholder="Letel som, pozrel si na ruky, skúsil som niečo zmeniť…"></textarea>
 
-            <h3 class="step__sub">How excited were you?</h3>
+            <h3 class="step__sub">Aký si bol nadšený?</h3>
             <div class="scale" id="q-excitement"></div>
-            <p class="step__note">Excitement is the usual reason lucid dreams end early.</p>
+            <p class="step__note">Nadšenie býva najčastejší dôvod, prečo lucidné sny skončia skoro.</p>
 
-            <h3 class="step__sub">How long did it last?</h3>
+            <h3 class="step__sub">Ako dlho to trvalo?</h3>
             <div class="chips chips--single" id="q-duration"></div>
 
-            <h3 class="step__sub">How did it end?</h3>
+            <h3 class="step__sub">Ako to skončilo?</h3>
             <div class="chips chips--single" id="q-ending"></div>
           </div>
 
           <!-- Ordinary branch -->
           <div class="hidden" id="branch-ordinary">
-            <h2 class="step__ask">Anything that could not happen awake?</h2>
+            <h2 class="step__ask">Bolo tam niečo, čo sa v bdení stať nemôže?</h2>
             <p class="step__note">
               These build your dream signs — the things you can learn to notice from inside.
             </p>
             <div class="chips" id="q-signs"></div>
             <input class="input input--quiet" id="q-signs-other" type="text"
-                   placeholder="Something else that was off" autocomplete="off" />
+                   placeholder="Niečo iné, čo nesedelo" autocomplete="off" />
 
-            <h3 class="step__sub">What did it seem to be about?</h3>
+            <h3 class="step__sub">O čom to podľa teba bolo?</h3>
             <textarea class="input input--quiet" id="q-theme" rows="2"
-                      placeholder="A feeling, a worry, a place — whatever it was circling"></textarea>
+                      placeholder="Pocit, obava, miesto — čokoľvek, okolo čoho to krúžilo"></textarea>
           </div>
 
-          <h3 class="step__sub">How vivid was it?</h3>
+          <h3 class="step__sub">Aké to bolo živé?</h3>
           <div class="scale" id="q-vividness"></div>
         </section>
 
         <section class="step step--tall" data-step="5">
-          <h2 class="step__ask">Last night</h2>
-          <p class="step__note">Optional, but this is where patterns show up.</p>
+          <h2 class="step__ask">Minulú noc</h2>
+          <p class="step__note">Nepovinné, ale práve tu sa ukazujú vzorce.</p>
 
-          <h3 class="step__sub">Where did you sleep?</h3>
+          <h3 class="step__sub">Kde si spal?</h3>
           <div class="chips chips--single" id="q-place"></div>
 
-          <h3 class="step__sub">Anything before bed?</h3>
+          <h3 class="step__sub">Niečo pred spaním?</h3>
           <div class="chips" id="q-substances"></div>
 
           <div class="switchrow switchrow--spaced">
-            <span class="step__sub step__sub--inline">Did you wake during the night?</span>
+            <span class="step__sub step__sub--inline">Zobudil si sa v noci?</span>
             <button class="toggle" type="button" id="q-woke" aria-pressed="false"
-                    aria-label="Woke during the night"></button>
+                    aria-label="Zobudil som sa v noci"></button>
           </div>
 
-          <h3 class="step__sub">Bedtime</h3>
+          <h3 class="step__sub">Čas spánku</h3>
           <input class="input input--quiet" id="q-bedtime" type="time" />
 
-          <h3 class="step__sub">Anything else about the night?</h3>
+          <h3 class="step__sub">Ešte niečo o tej noci?</h3>
           <textarea class="input input--quiet" id="q-envnotes" rows="2"
-                    placeholder="Stayed at a friend's, stressed, unusually tired…"></textarea>
+                    placeholder="Spal som u kamaráta, stres, nezvyčajne unavený…"></textarea>
 
           <div class="row row--stack sharerow hidden" id="share-row">
             <div class="switchrow">
-              <span class="step__sub step__sub--inline" id="share-label">Share this with them</span>
+              <span class="step__sub step__sub--inline" id="share-label">Zdieľať to s ním</span>
               <button class="toggle" type="button" id="q-share" aria-pressed="false"
-                      aria-label="Share this dream"></button>
+                      aria-label="Zdieľať tento sen"></button>
             </div>
             <p class="step__note" id="share-note">
-              They will be able to read this dream. Nobody else can, including the server.
+              Bude si môcť tento sen prečítať. Nikto iný nie, ani server.
             </p>
           </div>
 
           <div class="tip" id="tip">
-            <p class="t-meta tip__label">What to try</p>
+            <p class="t-meta tip__label">Čo skúsiť</p>
             <h4 class="tip__title" id="tip-title"></h4>
             <p class="tip__body" id="tip-body"></p>
           </div>
@@ -796,10 +796,10 @@
       </div>
 
       <div class="sheet__foot">
-        <button class="btn btn--quiet" type="button" id="compose-back">Back</button>
+        <button class="btn btn--quiet" type="button" id="compose-back">Späť</button>
         <span class="dots" id="compose-dots"></span>
         <span class="sheet__status" id="compose-status"></span>
-        <button class="btn btn--primary" type="button" id="compose-next">Next</button>
+        <button class="btn btn--primary" type="button" id="compose-next">Ďalej</button>
       </div>
     </div>
 
@@ -816,7 +816,7 @@
     </div>
 
     <button class="updatebar hidden" id="update-bar" type="button">
-      A new version is ready — tap to update
+      Je pripravená nová verzia — ťuknutím aktualizuješ
     </button>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -150,40 +150,40 @@ self.addEventListener('fetch', (event) => {
  */
 const NUDGES = {
   bedtime: {
-    title: 'Before you sleep',
+    title: 'Pred spaním',
     bodies: [
-      'Say it until you mean it: the next time I am dreaming, I will realise I am dreaming.',
-      'Repeat your intention. Picture your dream sign, and picture catching it.',
-      'One minute of intention now beats an hour of trying later. Tap to run through it.',
+      'Opakuj to, kým to nebudeš myslieť vážne: keď budem nabudúce snívať, uvedomím si to.',
+      'Zopakuj si úmysel. Predstav si svoj znak sna a predstav si, ako ho chytíš.',
+      'Minúta úmyslu teraz je viac než hodina snaženia neskôr. Ťuknutím si to prejdeš.',
     ],
     url: '/?tonight=1',
   },
   wbtb: {
-    title: 'Wake back to bed',
+    title: 'Prebudenie a späť do postele',
     bodies: [
-      'Stay up about twenty minutes, then go back with the intention. This is the window.',
-      'You are in the best REM of the night. Get up, stay dim and calm, then go back in.',
-      'Awake on purpose. Read one of your lucid dreams, then go back and expect another.',
+      'Ostaň hore asi dvadsať minút, potom sa vráť s úmyslom. Toto je to okno.',
+      'Si v najlepšom REM celej noci. Vstaň, svetlo tlmené a pokoj, potom sa vráť.',
+      'Si hore naschvál. Prečítaj si niektorý svoj lucidný sen, vráť sa a čakaj ďalší.',
     ],
     url: '/?wbtb=1',
   },
   morning: {
     title: 'Nocturne',
     bodies: [
-      'Anything you remember? Stay still and let it come back first.',
-      'What did you dream? Write it down before you move.',
-      'Even a fragment counts. What is left of last night?',
+      'Pamätáš si niečo? Ostaň bez pohybu a nechaj to najprv prísť.',
+      'Čo sa ti snívalo? Zapíš si to skôr, než sa pohneš.',
+      'Aj útržok sa počíta. Čo zostalo z minulej noci?',
     ],
     url: '/?capture=1',
   },
   check: {
-    title: 'Reality check',
+    title: 'Test reality',
     bodies: [
-      'Are you dreaming right now? Look at your hands and count the fingers.',
-      'Reality check. Read some text, look away, read it again — does it hold still?',
-      'Is this a dream? Pinch your nose closed and try to breathe in.',
-      'Check: how did you get here? Can you remember the last hour clearly?',
-      'Look at a clock, look away, look back. Reality check.',
+      'Snívaš práve teraz? Pozri sa na ruky a spočítaj si prsty.',
+      'Test reality. Prečítaj si nejaký text, pozri inam, prečítaj znova — ostal rovnaký?',
+      'Je toto sen? Zapchaj si nos a skús sa nadýchnuť.',
+      'Skontroluj: ako si sa sem dostal? Pamätáš si poslednú hodinu jasne?',
+      'Pozri sa na hodiny, pozri inam, pozri späť. Test reality.',
     ],
     url: '/?check=1',
   },

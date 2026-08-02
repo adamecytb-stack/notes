@@ -261,7 +261,7 @@ async function clearFailures(env, username) {
 async function handleSalt(request, env) {
   const body = await readJson(request);
   const username = normaliseUsername(body.username);
-  if (!username) return bad('Invalid username');
+  if (!username) return bad('Neplatné meno');
 
   const row = await env.DB.prepare('SELECT kdf_salt FROM users WHERE username = ?')
     .bind(username)
@@ -275,14 +275,14 @@ async function handleSalt(request, env) {
 async function handleRegister(request, env) {
   const body = await readJson(request);
   const username = normaliseUsername(body.username);
-  if (!username) return bad('Username must be 2–32 characters: letters, numbers, . _ -');
+  if (!username) return bad('Meno musí mať 2 – 32 znakov: písmená, čísla, . _ -');
   if (typeof body.authProof !== 'string' || !/^[a-f0-9]{64}$/.test(body.authProof)) {
-    return bad('Invalid credentials payload');
+    return bad('Neplatné prihlasovacie údaje');
   }
   if (typeof body.kdfSalt !== 'string' || !/^[a-f0-9]{32,64}$/.test(body.kdfSalt)) {
-    return bad('Invalid salt');
+    return bad('Neplatná soľ');
   }
-  if (!env.SETUP_CODE) return bad('Server is not configured for sign-up', 503);
+  if (!env.SETUP_CODE) return bad('Server nie je nastavený na registráciu', 503);
 
   // Sign-up needs the same backoff login has. Without it, a short setup code is
   // only a few thousand requests away from someone claiming one of the two
@@ -291,23 +291,23 @@ async function handleRegister(request, env) {
   const lock = await checkLock(env, REGISTER_KEY);
   if (lock.locked) {
     return json(
-      { error: `Too many attempts. Try again in ${lock.retryAfter}s.`, retryAfter: lock.retryAfter },
+      { error: `Priveľa pokusov. Skús to o ${lock.retryAfter} s.`, retryAfter: lock.retryAfter },
       429,
     );
   }
 
   if (typeof body.setupCode !== 'string' || !timingSafeEqual(body.setupCode, env.SETUP_CODE)) {
     await recordFailure(env, REGISTER_KEY);
-    return bad('That setup code is not right', 403);
+    return bad('Ten inštalačný kód nesedí', 403);
   }
 
   const { count } = await env.DB.prepare('SELECT COUNT(*) AS count FROM users').first();
-  if (count >= MAX_USERS) return bad('This journal already has its two people', 403);
+  if (count >= MAX_USERS) return bad('Tento denník už má svojich dvoch ľudí', 403);
 
   const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?')
     .bind(username)
     .first();
-  if (existing) return bad('That name is taken', 409);
+  if (existing) return bad('Toto meno je už obsadené', 409);
 
   const verifierSalt = randomHex(16);
   const verifier = await deriveVerifier(body.authProof, verifierSalt);
@@ -330,15 +330,15 @@ async function handleRegister(request, env) {
 async function handleLogin(request, env) {
   const body = await readJson(request);
   const username = normaliseUsername(body.username);
-  if (!username) return bad('Incorrect name or passphrase', 401);
+  if (!username) return bad('Nesprávne meno alebo heslo', 401);
   if (typeof body.authProof !== 'string' || !/^[a-f0-9]{64}$/.test(body.authProof)) {
-    return bad('Incorrect name or passphrase', 401);
+    return bad('Nesprávne meno alebo heslo', 401);
   }
 
   const lock = await checkLock(env, username);
   if (lock.locked) {
     return json(
-      { error: `Too many attempts. Try again in ${lock.retryAfter}s.`, retryAfter: lock.retryAfter },
+      { error: `Priveľa pokusov. Skús to o ${lock.retryAfter} s.`, retryAfter: lock.retryAfter },
       429,
     );
   }
@@ -357,7 +357,7 @@ async function handleLogin(request, env) {
 
   if (!user || !ok) {
     await recordFailure(env, username);
-    return bad('Incorrect name or passphrase', 401);
+    return bad('Nesprávne meno alebo heslo', 401);
   }
 
   await clearFailures(env, username);
@@ -394,9 +394,9 @@ async function listEntries(request, env, session) {
 }
 
 function validateEntryPayload(body) {
-  if (!isB64(body.iv, 32)) return 'Invalid iv';
-  if (!isB64(body.ciphertext, MAX_CIPHERTEXT_CHARS)) return 'Entry is too large';
-  if (!isTimestamp(body.dreamedAt)) return 'Invalid date';
+  if (!isB64(body.iv, 32)) return 'Neplatný iv';
+  if (!isB64(body.ciphertext, MAX_CIPHERTEXT_CHARS)) return 'Záznam je príliš veľký';
+  if (!isTimestamp(body.dreamedAt)) return 'Neplatný dátum';
   return null;
 }
 
@@ -441,7 +441,7 @@ async function updateEntry(request, env, session, id) {
     .bind(body.iv, body.ciphertext, body.dreamedAt, now, id, session.userId)
     .run();
 
-  if (!res.meta.changes) return bad('No such entry', 404);
+  if (!res.meta.changes) return bad('Taký záznam neexistuje', 404);
   return json({ id, updatedAt: now });
 }
 
@@ -452,7 +452,7 @@ async function deleteEntry(env, session, id) {
   )
     .bind(now, now, '', '', id, session.userId)
     .run();
-  if (!res.meta.changes) return bad('No such entry', 404);
+  if (!res.meta.changes) return bad('Taký záznam neexistuje', 404);
   return json({ id, deletedAt: now });
 }
 
@@ -463,28 +463,28 @@ async function deleteEntry(env, session, id) {
  */
 async function handleRekey(request, env, session) {
   const body = await readJson(request);
-  if (!Array.isArray(body.entries)) return bad('Missing entries');
+  if (!Array.isArray(body.entries)) return bad('Chýbajú záznamy');
   if (typeof body.authProof !== 'string' || !/^[a-f0-9]{64}$/.test(body.authProof)) {
-    return bad('Invalid credentials payload');
+    return bad('Neplatné prihlasovacie údaje');
   }
   if (typeof body.kdfSalt !== 'string' || !/^[a-f0-9]{32,64}$/.test(body.kdfSalt)) {
-    return bad('Invalid salt');
+    return bad('Neplatná soľ');
   }
   if (typeof body.currentProof !== 'string' || !/^[a-f0-9]{64}$/.test(body.currentProof)) {
-    return bad('Invalid credentials payload');
+    return bad('Neplatné prihlasovacie údaje');
   }
 
   const user = await env.DB.prepare('SELECT verifier, verifier_salt FROM users WHERE id = ?')
     .bind(session.userId)
     .first();
-  if (!user) return bad('No such account', 404);
+  if (!user) return bad('Taký účet neexistuje', 404);
 
   if (!(await verifierMatches(body.currentProof, user.verifier_salt, user.verifier))) {
-    return bad('Current passphrase is not right', 403);
+    return bad('Súčasné heslo nesedí', 403);
   }
 
   for (const e of body.entries) {
-    if (typeof e.id !== 'string' || !/^[a-f0-9-]{36}$/.test(e.id)) return bad('Invalid entry id');
+    if (typeof e.id !== 'string' || !/^[a-f0-9-]{36}$/.test(e.id)) return bad('Neplatné id záznamu');
     const err = validateEntryPayload(e);
     if (err) return bad(err);
   }
@@ -497,8 +497,8 @@ async function handleRekey(request, env, session) {
    */
   const rewrapping = body.wrappedPrivate !== undefined || body.wrappedIv !== undefined;
   if (rewrapping) {
-    if (!isB64(body.wrappedPrivate, 4096)) return bad('Invalid wrapped key');
-    if (!isB64(body.wrappedIv, 32)) return bad('Invalid iv');
+    if (!isB64(body.wrappedPrivate, 4096)) return bad('Neplatný zabalený kľúč');
+    if (!isB64(body.wrappedIv, 32)) return bad('Neplatný iv');
   }
 
   const now = Date.now();
@@ -562,16 +562,16 @@ async function findPeer(env, userId) {
  */
 async function handlePublishKeys(request, env, session) {
   const body = await readJson(request);
-  if (!isB64(body.publicKey, 256)) return bad('Invalid public key');
-  if (!isB64(body.wrappedPrivate, 4096)) return bad('Invalid wrapped key');
-  if (!isB64(body.wrappedIv, 32)) return bad('Invalid iv');
+  if (!isB64(body.publicKey, 256)) return bad('Neplatný verejný kľúč');
+  if (!isB64(body.wrappedPrivate, 4096)) return bad('Neplatný zabalený kľúč');
+  if (!isB64(body.wrappedIv, 32)) return bad('Neplatný iv');
 
   const existing = await env.DB.prepare('SELECT public_key FROM users WHERE id = ?')
     .bind(session.userId)
     .first();
   const changing = existing?.public_key && existing.public_key !== body.publicKey;
   if (changing && body.replace !== true) {
-    return bad('This account already has sharing keys', 409);
+    return bad('Tento účet už má kľúče na zdieľanie', 409);
   }
 
   const statements = [
@@ -610,21 +610,21 @@ async function handleGetKeys(env, session) {
 
 async function handlePutShare(request, env, session, entryId) {
   const body = await readJson(request);
-  if (!isB64(body.iv, 32) || !isB64(body.wrapIv, 32)) return bad('Invalid iv');
-  if (!isB64(body.ciphertext, MAX_CIPHERTEXT_CHARS)) return bad('Entry is too large');
-  if (!isB64(body.wrappedKey, 512)) return bad('Invalid wrapped key');
-  if (!isTimestamp(body.dreamedAt)) return bad('Invalid date');
+  if (!isB64(body.iv, 32) || !isB64(body.wrapIv, 32)) return bad('Neplatný iv');
+  if (!isB64(body.ciphertext, MAX_CIPHERTEXT_CHARS)) return bad('Záznam je príliš veľký');
+  if (!isB64(body.wrappedKey, 512)) return bad('Neplatný zabalený kľúč');
+  if (!isTimestamp(body.dreamedAt)) return bad('Neplatný dátum');
 
   const owned = await env.DB.prepare(
     'SELECT id FROM entries WHERE id = ? AND user_id = ? AND deleted_at IS NULL',
   )
     .bind(entryId, session.userId)
     .first();
-  if (!owned) return bad('No such entry', 404);
+  if (!owned) return bad('Taký záznam neexistuje', 404);
 
   const peer = await findPeer(env, session.userId);
-  if (!peer) return bad('Nobody to share with yet', 409);
-  if (!peer.public_key) return bad('They have not opened the app since sharing was added', 409);
+  if (!peer) return bad('Zatiaľ nie je s kým zdieľať', 409);
+  if (!peer.public_key) return bad('Odkedy pribudlo zdieľanie, ešte si appku neotvorili', 409);
 
   const now = Date.now();
   await env.DB.prepare(
@@ -747,9 +747,9 @@ async function handleSubscribe(request, env, session) {
   const allowInsecure = env.PUSH_ALLOW_INSECURE === '1';
   const scheme = allowInsecure ? /^https?:\/\// : /^https:\/\//;
   if (typeof body.endpoint !== 'string' || !scheme.test(body.endpoint)) {
-    return bad('Invalid subscription');
+    return bad('Neplatné prihlásenie na odber');
   }
-  if (body.endpoint.length > 2048) return bad('Invalid subscription');
+  if (body.endpoint.length > 2048) return bad('Neplatné prihlásenie na odber');
 
   // Range-checked, not just shape-checked: "25:99" matches HH:MM but is not a
   // time, and would sit in the table forever never matching a clock.
@@ -797,13 +797,13 @@ async function handleUnsubscribe(request, env, session) {
 
 /** Sends one immediately so the user can confirm it actually arrives. */
 async function handleTestPush(request, env, session) {
-  if (!env.VAPID_PRIVATE_KEY) return bad('Reminders are not configured on this server', 503);
+  if (!env.VAPID_PRIVATE_KEY) return bad('Pripomienky nie sú na tomto serveri nastavené', 503);
   const subs = await env.DB.prepare(
     'SELECT endpoint FROM push_subscriptions WHERE user_id = ?',
   )
     .bind(session.userId)
     .all();
-  if (!subs.results?.length) return bad('This phone is not registered for reminders', 404);
+  if (!subs.results?.length) return bad('Tento telefón nie je zaregistrovaný na pripomienky', 404);
 
   const results = [];
   for (const sub of subs.results) {
@@ -927,7 +927,15 @@ How to write:
 - Be specific to the dreams in front of you. Quote small details back. Generic lucid dreaming advice they could have found anywhere is a failure.
 - Keep it to a few short paragraphs. They are reading this on a phone, often half awake.
 - Say when you do not have enough data yet. Three dreams is not a pattern, and telling them so is more useful than inventing one.
-- Do not diagnose medical or psychiatric conditions, and do not interpret dreams as hidden messages about their life. You are looking for mechanical patterns that help them get lucid, not symbolism.`;
+- Do not diagnose medical or psychiatric conditions, and do not interpret dreams as hidden messages about their life. You are looking for mechanical patterns that help them get lucid, not symbolism.
+
+Language — this matters:
+- The two people using this journal are Slovak, and they write their dreams in Slovak. Everything you are given to read will be in Slovak, including the dream text, the titles, the notes about the night, and any answers they picked.
+- Always reply in Slovak. Natural, fluent, conversational Slovak — not a translation of an English sentence and not formal written Slovak. Address them as "ty".
+- Use the correct diacritics throughout. Slovak without them reads as broken.
+- The field labels around the dream text are in English because they come from the app; the dream itself is the Slovak part. Do not remark on the mix, and do not answer in English because of it.
+- When you quote a detail back to them, quote it in their own Slovak words rather than translating it.
+- Keep the lucid dreaming terms they would actually use: "lucidný sen", "znak sna", "test reality", "prebudenie a späť do postele" for wake-back-to-bed.`;
 
 async function checkAiBudget(env, userId) {
   const today = new Date().toISOString().slice(0, 10);
@@ -940,10 +948,10 @@ async function checkAiBudget(env, userId) {
   const used = sameDay ? row.count : 0;
 
   if (used >= AI_DAILY_CAP) {
-    return { ok: false, error: `That is ${AI_DAILY_CAP} readings today — the daily limit. Try again tomorrow.` };
+    return { ok: false, error: `To je ${AI_DAILY_CAP} rozborov za dnes — denný limit. Skús to zajtra.` };
   }
   if (row && now - row.last_at < AI_MIN_GAP_MS) {
-    return { ok: false, error: 'Give it a few seconds between readings.' };
+    return { ok: false, error: 'Nechaj medzi rozbormi pár sekúnd.' };
   }
 
   await env.DB.prepare(
@@ -961,12 +969,12 @@ async function checkAiBudget(env, userId) {
 
 async function handleAi(request, env, session) {
   if (!env.GEMINI_API_KEY) {
-    return bad('The dream companion is not switched on for this journal yet.', 503);
+    return bad('Snový spoločník zatiaľ nie je pre tento denník zapnutý.', 503);
   }
 
   const body = await readJson(request);
-  if (typeof body.prompt !== 'string' || !body.prompt.trim()) return bad('Nothing to read');
-  if (body.prompt.length > AI_MAX_CHARS) return bad('That is too much at once', 413);
+  if (typeof body.prompt !== 'string' || !body.prompt.trim()) return bad('Niet čo čítať');
+  if (body.prompt.length > AI_MAX_CHARS) return bad('To je naraz priveľa', 413);
 
   const budget = await checkAiBudget(env, session.userId);
   if (!budget.ok) return json({ error: budget.error }, 429);
@@ -989,7 +997,7 @@ async function handleAi(request, env, session) {
       }),
     });
   } catch {
-    return json({ error: 'Could not reach the dream companion.' }, 502);
+    return json({ error: 'Nepodarilo sa spojiť so snovým spoločníkom.' }, 502);
   }
 
   const payload = await res.json().catch(() => ({}));
@@ -999,11 +1007,11 @@ async function handleAi(request, env, session) {
     // very different problems and both are easy to hit on the free tier.
     const reason = payload?.error?.message || `Gemini returned ${res.status}`;
     if (res.status === 429) {
-      return json({ error: 'Gemini is rate-limited right now. Try again in a minute.' }, 429);
+      return json({ error: 'Gemini je teraz preťažené. Skús to o minútu.' }, 429);
     }
     if (res.status === 404) {
       return json(
-        { error: `No model called "${model}". Set GEMINI_MODEL to one your key can use.` },
+        { error: `Model „${model}“ neexistuje. Nastav GEMINI_MODEL na taký, ktorý tvoj kľúč podporuje.` },
         502,
       );
     }
@@ -1014,7 +1022,7 @@ async function handleAi(request, env, session) {
   const blocked = payload?.promptFeedback?.blockReason;
   if (blocked) {
     return json(
-      { error: 'Gemini declined to read that one. Dreams can trip its safety filters — nothing is wrong with what you wrote.' },
+      { error: 'Gemini tento sen odmietlo prečítať. Sny občas spustia jeho bezpečnostné filtre — na tom, čo si napísal, nie je nič zlé.' },
       422,
     );
   }
@@ -1024,7 +1032,7 @@ async function handleAi(request, env, session) {
     .join('')
     .trim();
 
-  if (!text) return json({ error: 'The dream companion had nothing to say.' }, 502);
+  if (!text) return json({ error: 'Snový spoločník nemal čo povedať.' }, 502);
 
   return json({ text, remaining: budget.remaining, model });
 }
@@ -1046,7 +1054,7 @@ async function handleApi(request, env, url) {
   }
 
   const session = await authenticate(request, env);
-  if (!session) return bad('Not signed in', 401);
+  if (!session) return bad('Nie si prihlásený', 401);
 
   if (path === '/api/auth/me' && method === 'GET') {
     return json({
@@ -1096,7 +1104,7 @@ async function handleApi(request, env, url) {
     return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', 0) });
   }
 
-  return bad('Not found', 404);
+  return bad('Nenájdené', 404);
 }
 
 /**
@@ -1147,7 +1155,7 @@ export default {
         return withSecurityHeaders(bad(err.message === 'too large' ? 'Request too large' : 'Malformed request'));
       }
       console.error('unhandled', err);
-      return withSecurityHeaders(json({ error: 'Something went wrong' }, 500));
+      return withSecurityHeaders(json({ error: 'Niečo sa pokazilo' }, 500));
     }
   },
 

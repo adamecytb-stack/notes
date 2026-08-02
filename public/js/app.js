@@ -154,14 +154,14 @@ function setMode(next) {
   mode = next;
   const signup = mode === 'signup';
   $('#field-setup').classList.toggle('hidden', !signup);
-  $('#lock-submit-label').textContent = signup ? 'Create journal' : 'Unlock';
+  $('#lock-submit-label').textContent = signup ? 'Vytvoriť denník' : 'Odomknúť';
   $('#lock-switch').textContent = signup
-    ? 'Already have an account? Sign in'
-    : 'First time here? Create your account';
+    ? 'Už máš účet? Prihlás sa'
+    : 'Prvýkrát tu? Vytvor si účet';
   $('#f-passphrase').setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
   $('#lock-sub').textContent = signup
-    ? 'Pick a passphrase you will not forget. It is the only thing that can decrypt your dreams — not even the server can.'
-    : 'Your dreams are encrypted on this phone before they ever leave it.';
+    ? 'Vyber si heslo, ktoré nezabudneš. Je to jediná vec, ktorá dokáže dešifrovať tvoje sny — ani server to nedokáže.'
+    : 'Tvoje sny sa zašifrujú v tomto telefóne skôr, než ho vôbec opustia.';
   $('#lock-error').textContent = '';
 }
 
@@ -178,17 +178,17 @@ $('#lock-form').addEventListener('submit', async (e) => {
 
   errorNode.textContent = '';
   if (!username || !passphrase) {
-    errorNode.textContent = 'Both fields, please.';
+    errorNode.textContent = 'Obe polia, prosím.';
     return;
   }
   if (mode === 'signup' && passphrase.length < 10) {
-    errorNode.textContent = 'Use at least 10 characters — this is the only key to your dreams.';
+    errorNode.textContent = 'Použi aspoň 10 znakov — toto je jediný kľúč k tvojim snom.';
     return;
   }
 
   submit.disabled = true;
   const original = label.textContent;
-  label.textContent = mode === 'signup' ? 'Creating…' : 'Unlocking…';
+  label.textContent = mode === 'signup' ? 'Vytváram…' : 'Odomykám…';
   submit.prepend(el('span', 'spinner'));
 
   try {
@@ -201,8 +201,8 @@ $('#lock-form').addEventListener('submit', async (e) => {
   } catch (err) {
     errorNode.textContent =
       err instanceof ApiError && err.status === 0
-        ? 'No connection. Try again when you have signal.'
-        : err.message || 'Something went wrong.';
+        ? 'Bez pripojenia. Skús to, keď budeš mať signál.'
+        : err.message || 'Niečo sa pokazilo.';
     // Re-trigger the shake even if the message is identical.
     errorNode.style.animation = 'none';
     void errorNode.offsetWidth;
@@ -249,11 +249,11 @@ async function healSharing() {
     const resealed = await reseal((id) => state.entries.get(id)).catch(() => 0);
     sharing.peerRotated = false;
     await refreshInbox().catch(() => {});
-    if (resealed) toast(`Re-shared ${resealed} dream${resealed === 1 ? '' : 's'} with them`);
+    if (resealed) toast(`Znovu som s ním zdieľal ${resealed} ${resealed === 1 ? 'sen' : resealed < 5 ? 'sny' : 'snov'}`);
   }
   if (sharing.repaired) {
     sharing.repaired = false;
-    toast('Sharing has been reconnected');
+    toast('Zdieľanie je znovu pripojené');
   }
 }
 
@@ -288,12 +288,12 @@ function renderJournal() {
     tab === 'theirs'
       ? count === 0
         ? ''
-        : `${count} shared with you`
+        : `${count} ${count === 1 ? 'zdieľaný' : count < 5 ? 'zdieľané' : 'zdieľaných'} s tebou`
       : count === 0
         ? ''
         : count === 1
-          ? '1 dream kept'
-          : `${count} dreams kept`;
+          ? '1 uložený sen'
+          : `${count} ${count < 5 ? 'uložené sny' : 'uložených snov'}`;
 
   const offline = state.lastError === 'offline' || !navigator.onLine;
   $('#offline-banner').classList.toggle('hidden', !offline);
@@ -329,10 +329,10 @@ function renderEntry(entry, index) {
   if (entry.undecryptable) node.classList.add('entry--broken');
 
   const when = el('div', 'entry__when');
-  const { hour, minute, meridiem } = clockParts(entry.dreamedAt);
+  const { hour, minute } = clockParts(entry.dreamedAt);
   const time = el('span', 'entry__time');
   time.append(hour, el('i', null, '·'), minute);
-  when.append(time, el('span', 'entry__meridiem', meridiem));
+  when.append(time);
 
   const { heading, excerpt } = summarise(entry);
 
@@ -359,25 +359,25 @@ function renderEntry(entry, index) {
 function showSharedDream(entry) {
   const slot = el('div', 'reading');
   if (entry.undecryptable) {
-    slot.appendChild(el('p', 'error', 'This could not be decrypted.'));
+    slot.appendChild(el('p', 'error', 'Toto sa nepodarilo dešifrovať.'));
   } else {
     if (entry.body) slot.appendChild(el('p', 'reading__p', entry.body));
     const facts = [];
     if (entry.lucid) {
-      if (entry.trigger) facts.push(`Became aware because: ${entry.trigger}`);
-      if (entry.actions) facts.push(`Once aware: ${entry.actions}`);
-      if (entry.duration) facts.push(`Lasted: ${entry.duration}`);
-      if (entry.ending) facts.push(`Ended: ${entry.ending}`);
+      if (entry.trigger) facts.push(`Uvedomil si to vďaka: ${entry.trigger}`);
+      if (entry.actions) facts.push(`Keď to vedel: ${entry.actions}`);
+      if (entry.duration) facts.push(`Trvalo: ${entry.duration}`);
+      if (entry.ending) facts.push(`Skončilo: ${entry.ending}`);
     }
-    if (entry.signs?.length) facts.push(`Dream signs: ${entry.signs.join('; ')}`);
+    if (entry.signs?.length) facts.push(`Znaky sna: ${entry.signs.join('; ')}`);
     for (const f of facts) slot.appendChild(el('p', 'note', f));
   }
 
   openModal({
-    title: entry.title || (entry.lucid ? 'A lucid dream' : 'A dream'),
+    title: entry.title || (entry.lucid ? 'Lucidný sen' : 'Sen'),
     body: `${entry.from} · ${fullStamp(entry.dreamedAt)}`,
     slot,
-    actions: [{ label: 'Close', kind: 'btn--ghost', onClick: closeModal }],
+    actions: [{ label: 'Zavrieť', kind: 'btn--ghost', onClick: closeModal }],
   });
 }
 
@@ -387,13 +387,13 @@ function renderEmptyShared() {
   mark.classList.add('empty__mark');
   wrap.append(
     mark,
-    el('h2', 'empty__title', `Nothing from ${sharing.peerName} yet`),
+    el('h2', 'empty__title', `Od ${sharing.peerName} zatiaľ nič`),
     el(
       'p',
       'empty__body',
       canShare()
-        ? 'Lucid dreams either of you record get shared here automatically. Ordinary ones stay private.'
-        : 'They need to open the app once so their keys exist, then sharing works both ways.',
+        ? 'Lucidné sny, ktoré si ktokoľvek z vás zapíše, sa sem zdieľajú automaticky. Obyčajné ostávajú súkromné.'
+        : 'Musí si raz otvoriť appku, aby vznikli jeho kľúče, potom zdieľanie funguje na obe strany.',
     ),
   );
   return wrap;
@@ -405,7 +405,7 @@ function renderEmpty() {
   mark.classList.add('empty__mark');
   wrap.append(
     mark,
-    el('h2', 'empty__title', 'Nothing written down yet'),
+    el('h2', 'empty__title', 'Zatiaľ nič zapísané'),
     el(
       'p',
       'empty__body',
@@ -423,8 +423,8 @@ function renderEmpty() {
 function summarise(entry) {
   if (entry.undecryptable) {
     return {
-      heading: 'Could not be decrypted',
-      excerpt: 'This entry was written with a different passphrase.',
+      heading: 'Nepodarilo sa dešifrovať',
+      excerpt: 'Tento záznam bol napísaný iným heslom.',
     };
   }
 
@@ -462,10 +462,10 @@ function renderPatterns() {
   $('#streak-n').textContent = String(stats.streak);
   $('#streak-label').textContent =
     stats.streak === 0
-      ? 'no streak yet — tonight starts one'
+      ? 'zatiaľ žiadna séria — dnešnou nocou sa začína'
       : stats.streak === 1
-        ? 'night so far'
-        : 'nights in a row';
+        ? 'noc zatiaľ'
+        : 'nocí v rade';
 
   $('#stat-lucid').textContent = String(stats.lucidCount);
   $('#stat-rate').textContent = `${stats.lucidRate}%`;
@@ -507,7 +507,7 @@ function renderCalendar(stats) {
   svg.setAttribute('viewBox', `0 0 ${COLS * 10} ${rows * 10}`);
   svg.setAttribute('class', 'starmap');
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Your last six weeks. Bright stars are lucid nights.');
+  svg.setAttribute('aria-label', 'Tvojich posledných šesť týždňov. Jasné hviezdy sú lucidné noci.');
 
   /*
    * Jittered off the lattice, and varied in size, so it reads as a sky rather
@@ -555,10 +555,10 @@ function renderCalendar(stats) {
 
   for (const star of stars) {
     const { night, key } = star;
-    const stamp = new Date(key).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    const stamp = new Date(key).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long' });
     const label = night
-      ? `${stamp}: ${night.logged} dream${night.logged === 1 ? '' : 's'}${night.lucid ? ', lucid' : ''}`
-      : `${stamp}: nothing written yet`;
+      ? `${stamp}: ${night.logged} ${night.logged === 1 ? 'sen' : night.logged < 5 ? 'sny' : 'snov'}${night.lucid ? ', lucidný' : ''}`
+      : `${stamp}: zatiaľ nič napísané`;
 
     const dot = document.createElementNS(ns, 'circle');
     dot.setAttribute('cx', star.x.toFixed(2));
@@ -584,14 +584,14 @@ function renderCalendar(stats) {
   const first = new Date(start);
   const label =
     first.getMonth() === new Date(today).getMonth()
-      ? new Date(today).toLocaleDateString(undefined, { month: 'long' })
-      : `${first.toLocaleDateString(undefined, { month: 'short' })} – ${new Date(today).toLocaleDateString(undefined, { month: 'short' })}`;
-  $('#cal-label').textContent = `Last six weeks · ${label}`;
+      ? new Date(today).toLocaleDateString('sk-SK', { month: 'long' })
+      : `${first.toLocaleDateString('sk-SK', { month: 'short' })} – ${new Date(today).toLocaleDateString('sk-SK', { month: 'short' })}`;
+  $('#cal-label').textContent = `Posledných šesť týždňov · ${label}`;
 
   const lit = stats.lucidNights;
   $('#cal-note').textContent = lit
-    ? `${lit} lucid night${lit === 1 ? '' : 's'} in the last six weeks.`
-    : 'Every night you write becomes a star. The lucid ones burn.';
+    ? `${lit} ${lit === 1 ? 'lucidná noc' : lit < 5 ? 'lucidné noci' : 'lucidných nocí'} za posledných šesť týždňov.`
+    : 'Každá noc, ktorú zapíšeš, sa stane hviezdou. Tie lucidné horia.';
 }
 
 function renderBars(node, rows, max) {
@@ -622,8 +622,8 @@ function renderSigns(stats) {
   const top = rows[0];
   $('#signs-note').textContent =
     top.value >= 3
-      ? `"${top.label}" is in ${top.value} of your dreams. Picture it before sleep and tell yourself that when you see it, you will know you are dreaming.`
-      : 'Tag the odd parts of a few more dreams and the recurring ones will surface here.';
+      ? `„${top.label}“ máš v ${top.value} snoch. Pred spaním si to predstav a povedz si, že keď to uvidíš, budeš vedieť, že snívaš.`
+      : 'Označ zvláštne časti ešte v pár snoch a tie opakujúce sa sa tu ukážu.';
 
   renderBars($('#signs'), rows, rows[0].value);
 }
@@ -636,7 +636,7 @@ function renderConditions(entries) {
   }
 
   $('#cond-note').textContent =
-    'Share of nights that went lucid, for conditions you have logged at least three times. Small numbers — treat it as a hint, not a finding.';
+    'Podiel nocí, ktoré boli lucidné, pre okolnosti zapísané aspoň trikrát. Malé čísla — ber to ako náznak, nie ako zistenie.';
 
   renderBars(
     $('#conditions'),
@@ -692,8 +692,8 @@ function renderChecks() {
   if (!total) return;
 
   $('#checks-note').textContent =
-    `${total} in the last fortnight, ${(total / 14).toFixed(1)} a day. ${today} today. ` +
-    'The habit only transfers into dreams once it is genuine — question it properly, every time.';
+    `${total} za posledné dva týždne, ${(total / 14).toFixed(1)} denne. Dnes ${today}. ` +
+    'Zvyk sa do snov prenesie, až keď je úprimný — pýtaj sa poriadne, zakaždým.';
 
   const node = $('#checks-spark');
   node.replaceChildren();
@@ -711,7 +711,7 @@ function renderChecks() {
 function askedRealityCheck() {
   const n = logCheck();
   renderChecks();
-  toast(n === 1 ? 'Checked. That is one today.' : `Checked. ${n} today.`);
+  toast(n === 1 ? 'Skontrolované. Dnes prvý.' : `Skontrolované. Dnes ${n}.`);
 }
 
 $('#do-check').addEventListener('click', askedRealityCheck);
@@ -741,25 +741,25 @@ function openTonight(mode = 'bed') {
   const sign = top && top.count >= 2 ? top.name : null;
   const wbtbMode = mode === 'wbtb';
 
-  $('#tonight-title').textContent = wbtbMode ? 'Wake back to bed' : 'Before you sleep';
+  $('#tonight-title').textContent = wbtbMode ? 'Prebudenie a späť do postele' : 'Pred spaním';
   $('#tonight-lede').textContent = wbtbMode
-    ? 'You are awake in the best REM window of the night. Stay up, stay dim, then go back in expecting to notice.'
-    : 'One minute now is worth an hour of trying later.';
+    ? 'Si hore v najlepšom REM okne noci. Ostaň hore, svetlo tlmené, potom sa vráť s tým, že si to všimneš.'
+    : 'Jedna minúta teraz je viac než hodina snaženia neskôr.';
 
   $('#wbtb-panel').classList.toggle('hidden', !wbtbMode);
   if (wbtbMode) startWbtbTimer();
   else stopWbtbTimer();
 
-  $('#tonight-sign').textContent = sign || 'Not enough dreams yet';
+  $('#tonight-sign').textContent = sign || 'Zatiaľ málo snov';
   $('#tonight-sign-note').textContent = sign
-    ? `It has turned up in ${top.count} of your dreams. Picture it now, and picture catching it.`
-    : 'Tag the impossible parts of a few dreams and the one that keeps coming back will appear here.';
+    ? `Objavilo sa to v ${top.count} tvojich snoch. Predstav si to teraz a predstav si, ako to chytíš.`
+    : 'Označ nemožné časti v pár snoch a tá, ktorá sa stále vracia, sa tu ukáže.';
 
   // The signs read as sentences ("Something impossible felt normal"), so they
   // have to be quoted rather than dropped into the middle of one.
   $('#mantra-text').textContent = sign
-    ? `Next time — ${lowerFirst(sign)} — I will realise I am dreaming.`
-    : 'The next time something does not make sense, I will realise I am dreaming.';
+    ? `Keď nabudúce — ${lowerFirst(sign)} — uvedomím si, že snívam.`
+    : 'Keď mi nabudúce niečo nebude dávať zmysel, uvedomím si, že snívam.';
 
   mantraCount = 0;
   renderMantra();
@@ -777,16 +777,16 @@ function renderMantra() {
   }
   $('#mantra-count').textContent =
     mantraCount === 0
-      ? 'Tap each time you say it'
+      ? 'Ťukni pri každom zopakovaní'
       : mantraCount >= MANTRA_TARGET
-        ? 'That is enough. Sleep on it.'
-        : `${mantraCount} of ${MANTRA_TARGET}`;
+        ? 'To stačí. Choď na to spať.'
+        : `${mantraCount} z ${MANTRA_TARGET}`;
 }
 
 $('#mantra').addEventListener('click', () => {
   mantraCount = Math.min(MANTRA_TARGET, mantraCount + 1);
   renderMantra();
-  if (mantraCount === MANTRA_TARGET) toast('Now go to sleep still thinking it');
+  if (mantraCount === MANTRA_TARGET) toast('Teraz choď spať a stále na to mysli');
 });
 
 /**
@@ -804,10 +804,10 @@ function renderReenter(entries, wbtbMode) {
   node.replaceChildren();
   node.appendChild(el('h3', 'reenter__title', pick.title || 'Untitled'));
   node.appendChild(el('p', 'reenter__body', (pick.body || '').slice(0, 320)));
-  if (pick.lucid) node.appendChild(el('span', 'reenter__flag', 'you were lucid in this one'));
+  if (pick.lucid) node.appendChild(el('span', 'reenter__flag', 'v tomto si bol lucidný'));
   $('#reenter-note').textContent = wbtbMode
-    ? 'Read it, then go back to bed and pick it up where it left off.'
-    : 'Replay it as you fall asleep — and this time, notice.';
+    ? 'Prečítaj si ho, potom si ľahni späť a nadviaž tam, kde skončil.'
+    : 'Prehrávaj si ho, kým zaspávaš — a tentoraz si to všimni.';
 }
 
 function startWbtbTimer() {
@@ -820,8 +820,8 @@ function startWbtbTimer() {
     if (wbtbLeft <= 0) {
       stopWbtbTimer();
       $('#wbtb-note').textContent =
-        'That is twenty minutes. Go back to bed now, expecting to notice.';
-      toast('Time. Back to bed.');
+        'To je dvadsať minút. Choď si teraz ľahnúť s tým, že si to všimneš.';
+      toast('Čas. Späť do postele.');
     }
   }, 1000);
 }
@@ -839,7 +839,7 @@ function stopWbtbTimer() {
 $('#wbtb-go').addEventListener('click', () => {
   stopWbtbTimer();
   showView('journal');
-  toast('Good luck. Expect to notice.');
+  toast('Veľa šťastia. Počítaj s tým, že si to všimneš.');
 });
 
 $('#tonight-done').addEventListener('click', () => {
@@ -908,7 +908,7 @@ function showStep(next) {
 
   $('#compose-back').classList.toggle('is-hidden', step === 0);
   const last = step === STEPS.length - 1;
-  $('#compose-next').textContent = last ? 'Keep' : 'Next';
+  $('#compose-next').textContent = last ? 'Uložiť' : 'Ďalej';
 
   renderDots();
   $('#compose-scroll').scrollTop = 0;
@@ -951,9 +951,9 @@ $('#compose-next').addEventListener('click', async () => {
 
   if (prefs.aiAfterEntry && hasConsented() && aiAvailable) {
     const entry = state.entries.get(id) || sortedEntries()[0];
-    if (entry) showReading('On this dream', (all) => buildEntryPrompt(entry, all));
+    if (entry) showReading('K tomuto snu', (all) => buildEntryPrompt(entry, all));
   } else {
-    toast('Kept');
+    toast('Uložené');
   }
 });
 
@@ -1099,7 +1099,7 @@ function setScale(node, value) {
 
 const mark = () => {
   dirty = true;
-  statusNode.textContent = 'Saving…';
+  statusNode.textContent = 'Ukladám…';
   statusNode.classList.remove('is-saved');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => void commit({ silent: true }), 2000);
@@ -1237,7 +1237,7 @@ function showBranch() {
   $('#branch-ordinary').classList.toggle('hidden', draft.lucid !== false);
   $('#share-row').classList.toggle('hidden', !answered || !canShare());
   if (canShare()) {
-    $('#share-label').textContent = `Share this with ${sharing.peerName}`;
+    $('#share-label').textContent = `Zdieľať to s ${sharing.peerName}`;
   }
 }
 
@@ -1253,20 +1253,20 @@ $('#q-share').addEventListener('click', async (e) => {
   const id = composing?.id || (await commit({ silent: true }));
   if (!id) {
     e.currentTarget.setAttribute('aria-pressed', 'false');
-    toast('Write something first');
+    toast('Najprv niečo napíš');
     return;
   }
   try {
     if (on) {
       await shareEntry(state.entries.get(id));
-      toast(`Shared with ${sharing.peerName}`);
+      toast(`Zdieľané s ${sharing.peerName}`);
     } else {
       await unshareEntry(id);
-      toast('No longer shared');
+      toast('Už nie je zdieľané');
     }
   } catch (err) {
     e.currentTarget.setAttribute('aria-pressed', String(!on));
-    toast(err.message || 'Could not change sharing');
+    toast(err.message || 'Zdieľanie sa nepodarilo zmeniť');
   }
 });
 
@@ -1381,13 +1381,13 @@ async function commit({ silent = false } = {}) {
     // Once it exists it can be thrown away again, even if it was new a moment ago.
     $('#compose-delete').classList.remove('hidden');
     dirty = false;
-    statusNode.textContent = state.entries.get(id)?.pending ? 'Saved on this phone' : 'Saved';
+    statusNode.textContent = state.entries.get(id)?.pending ? 'Uložené v tomto telefóne' : 'Uložené';
     statusNode.classList.add('is-saved');
     renderJournal();
     return id;
   } catch (err) {
-    statusNode.textContent = 'Could not save';
-    if (!silent) toast(err.message || 'Could not save');
+    statusNode.textContent = 'Nepodarilo sa uložiť';
+    if (!silent) toast(err.message || 'Nepodarilo sa uložiť');
     return null;
   }
 }
@@ -1402,8 +1402,8 @@ $('#compose-cancel').addEventListener('click', async () => {
 
 $('#compose-delete').addEventListener('click', async () => {
   const ok = await confirmDialog({
-    title: 'Delete this dream?',
-    body: 'It will be removed from the server too. This cannot be undone.',
+    title: 'Zmazať tento sen?',
+    body: 'Odstráni sa aj zo servera. Toto sa nedá vrátiť.',
     confirmLabel: 'Delete',
     danger: true,
   });
@@ -1412,7 +1412,7 @@ $('#compose-delete').addEventListener('click', async () => {
   if (composing.id) await removeEntry(composing.id);
   closeCompose();
   renderJournal();
-  toast('Deleted');
+  toast('Zmazané');
 });
 
 /** Lets you file a dream under the night it actually happened. */
@@ -1424,8 +1424,8 @@ $('#compose-when').addEventListener('click', () => {
   wrap.appendChild(input);
 
   openModal({
-    title: 'When was this dream?',
-    body: 'Dreams before noon are filed under the night before.',
+    title: 'Kedy bol tento sen?',
+    body: 'Sny pred poludním sa zaraďujú pod predchádzajúcu noc.',
     slot: wrap,
     actions: [
       {
@@ -1496,7 +1496,7 @@ function refreshSettings() {
   refreshSharing();
   refreshCompanion();
 
-  $('#about-note').textContent = `Nocturne ${APP_VERSION} · Entries are encrypted with AES-GCM on this device. The server stores only ciphertext and cannot read them.`;
+  $('#about-note').textContent = `Nocturne ${APP_VERSION} · Záznamy sú v tomto zariadení zašifrované cez AES-GCM. Server ukladá len šifrovaný text a nevie ho prečítať.`;
 
   idbGetAll('entries').then((rows) => {
     const bytes = rows.reduce((sum, r) => sum + (r.ciphertext?.length || 0), 0);
@@ -1527,9 +1527,9 @@ $('#set-passphrase').addEventListener('click', openPassphraseDialog);
 
 $('#set-signout').addEventListener('click', async () => {
   const ok = await confirmDialog({
-    title: 'Sign out?',
-    body: 'Your dreams stay on the server. You will need your passphrase to read them again.',
-    confirmLabel: 'Sign out',
+    title: 'Odhlásiť sa?',
+    body: 'Sny ostanú na serveri. Na ich opätovné prečítanie budeš potrebovať heslo.',
+    confirmLabel: 'Odhlásiť sa',
   });
   if (!ok) return;
   await signOut();
@@ -1541,19 +1541,19 @@ $('#set-signout').addEventListener('click', async () => {
 
 $('#set-export-text').addEventListener('click', () => {
   download(`nocturne-${new Date().toISOString().slice(0, 10)}.txt`, exportText());
-  toast('Exported');
+  toast('Exportované');
 });
 
 $('#set-export-json').addEventListener('click', () => {
   download(`nocturne-${new Date().toISOString().slice(0, 10)}.json`, exportJson(), 'application/json');
-  toast('Exported');
+  toast('Exportované');
 });
 
 $('#set-delete').addEventListener('click', async () => {
   const ok = await confirmDialog({
-    title: 'Delete your journal?',
-    body: 'Every dream you have written will be erased from the server permanently. Export first if you want to keep a copy.',
-    confirmLabel: 'Delete everything',
+    title: 'Zmazať tvoj denník?',
+    body: 'Každý sen, ktorý si napísal, sa natrvalo vymaže zo servera. Ak si chceš nechať kópiu, najprv exportuj.',
+    confirmLabel: 'Zmazať všetko',
     danger: true,
   });
   if (!ok) return;
@@ -1563,9 +1563,9 @@ $('#set-delete').addEventListener('click', async () => {
     history.replaceState({ view: 'lock' }, '');
     showView('lock', { push: false });
     setMode('signin');
-    toast('Journal deleted');
+    toast('Denník zmazaný');
   } catch (err) {
-    toast(err.message || 'Could not delete');
+    toast(err.message || 'Nepodarilo sa zmazať');
   }
 });
 
@@ -1586,28 +1586,28 @@ function openPassphraseDialog() {
     return input;
   };
 
-  const current = make('Current passphrase', 'pp-current', 'current-password');
-  const next = make('New passphrase', 'pp-next', 'new-password');
-  const again = make('New passphrase again', 'pp-again', 'new-password');
+  const current = make('Súčasné heslo', 'pp-current', 'current-password');
+  const next = make('Nové heslo', 'pp-next', 'new-password');
+  const again = make('Nové heslo ešte raz', 'pp-again', 'new-password');
   const error = el('p', 'error');
   form.appendChild(error);
 
   openModal({
-    title: 'Change passphrase',
-    body: 'Every entry is decrypted and re-encrypted on this phone. Keep the app open until it finishes.',
+    title: 'Zmeniť heslo',
+    body: 'Každý záznam sa v tomto telefóne dešifruje a zašifruje nanovo. Nechaj appku otvorenú, kým to dobehne.',
     slot: form,
     actions: [
       {
-        label: 'Change it',
+        label: 'Zmeniť',
         kind: 'btn--primary',
         onClick: async (btn) => {
           error.textContent = '';
           if (next.value.length < 10) {
-            error.textContent = 'Use at least 10 characters.';
+            error.textContent = 'Použi aspoň 10 znakov.';
             return;
           }
           if (next.value !== again.value) {
-            error.textContent = 'The new passphrases do not match.';
+            error.textContent = 'Nové heslá sa nezhodujú.';
             return;
           }
           btn.disabled = true;
@@ -1615,11 +1615,11 @@ function openPassphraseDialog() {
           try {
             await changePassphrase(current.value, next.value);
             closeModal();
-            toast('Passphrase changed');
+            toast('Heslo zmenené');
           } catch (err) {
-            error.textContent = err.message || 'Could not change it.';
+            error.textContent = err.message || 'Nepodarilo sa to zmeniť.';
             btn.disabled = false;
-            btn.textContent = 'Change it';
+            btn.textContent = 'Zmeniť';
           }
         },
       },
@@ -1639,12 +1639,12 @@ function refreshCompanion() {
 
   const hint = $('#ai-hint');
   if (!aiAvailable) {
-    hint.textContent = 'No Gemini key is set on the server yet, so this cannot run.';
+    hint.textContent = 'Na serveri zatiaľ nie je nastavený Gemini kľúč, takže toto nepobeží.';
   } else if (on) {
     hint.textContent =
-      'On. Dream text is decrypted here and sent to Google Gemini when you ask for a reading.';
+      'Zapnuté. Text sna sa tu dešifruje a pri vyžiadaní rozboru sa odošle do Google Gemini.';
   } else {
-    hint.textContent = 'Off. Nothing is sent anywhere until you turn this on.';
+    hint.textContent = 'Vypnuté. Kým to nezapneš, nikam sa nič neposiela.';
   }
 
   for (const id of ['#ai-patterns', '#ai-routine']) {
@@ -1662,10 +1662,10 @@ function askConsent() {
   return new Promise((resolve) => {
     const body = el('div', 'stack');
     const points = [
-      'Your dreams are decrypted on this phone and sent to Google Gemini to be read.',
+      'Tvoje sny sa v tomto telefóne dešifrujú a odošlú sa na prečítanie do Google Gemini.',
       'They pass through your own server on the way. Everywhere else in this app, the server only ever sees ciphertext.',
       'On Gemini’s free tier, Google may use what you send to improve its products. Enabling billing on the key stops that.',
-      'Nothing is sent until you ask for a reading, and nothing is stored by the companion.',
+      'Kým si nevypýtaš rozbor, nič sa neodosiela, a spoločník si nič neukladá.',
     ];
     for (const p of points) {
       const row = el('p', 'note');
@@ -1674,13 +1674,13 @@ function askConsent() {
     }
 
     openModal({
-      title: 'Before it reads anything',
-      body: 'This is the only feature that sends your dreams off this phone. Read this properly.',
+      title: 'Skôr než si niečo prečíta',
+      body: 'Toto je jediná funkcia, ktorá posiela tvoje sny preč z telefónu. Prečítaj si to poriadne.',
       slot: body,
       dismissable: false,
       actions: [
         {
-          label: 'I understand — turn it on',
+          label: 'Rozumiem — zapnúť',
           kind: 'btn--primary',
           onClick: () => {
             closeModal();
@@ -1708,7 +1708,7 @@ $('#set-ai').addEventListener('click', async (e) => {
     return;
   }
   if (!aiAvailable) {
-    toast('No Gemini key is set on the server');
+    toast('Na serveri nie je nastavený Gemini kľúč');
     return;
   }
   if (await askConsent()) grantConsent();
@@ -1717,7 +1717,7 @@ $('#set-ai').addEventListener('click', async (e) => {
 
 $('#set-ai-auto').addEventListener('click', (e) => {
   if (!hasConsented()) {
-    toast('Turn the companion on first');
+    toast('Najprv zapni spoločníka');
     return;
   }
   setPref('aiAfterEntry', e.currentTarget.getAttribute('aria-pressed') !== 'true');
@@ -1727,13 +1727,13 @@ $('#set-ai-auto').addEventListener('click', (e) => {
 /** Opens the reading panel, then fills it in when the answer arrives. */
 async function showReading(title, buildPrompt) {
   if (!hasConsented() || !aiAvailable) {
-    toast(aiAvailable ? 'Turn the companion on first' : 'No Gemini key is set on the server');
+    toast(aiAvailable ? 'Najprv zapni spoločníka' : 'Na serveri nie je nastavený Gemini kľúč');
     return;
   }
 
   const entries = sortedEntries();
   if (!entries.length) {
-    toast('Write a dream down first');
+    toast('Najprv si zapíš nejaký sen');
     return;
   }
 
@@ -1742,7 +1742,7 @@ async function showReading(title, buildPrompt) {
   openModal({
     title,
     slot,
-    actions: [{ label: 'Close', kind: 'btn--ghost', onClick: closeModal }],
+    actions: [{ label: 'Zavrieť', kind: 'btn--ghost', onClick: closeModal }],
   });
 
   try {
@@ -1753,16 +1753,16 @@ async function showReading(title, buildPrompt) {
       if (para.trim()) slot.appendChild(el('p', 'reading__p', para.trim()));
     }
   } catch (err) {
-    slot.replaceChildren(el('p', 'error', err.message || 'That did not work.'));
+    slot.replaceChildren(el('p', 'error', err.message || 'To nevyšlo.'));
   }
 }
 
 $('#ai-patterns').addEventListener('click', () =>
-  showReading('What I see in your dreams', buildPatternPrompt),
+  showReading('Čo vidím v tvojich snoch', buildPatternPrompt),
 );
 
 $('#ai-routine').addEventListener('click', () =>
-  showReading('Your sleep timing', buildRoutinePrompt),
+  showReading('Tvoje časovanie spánku', buildRoutinePrompt),
 );
 
 /* --------------------------------------------------------- notifications  */
@@ -1777,8 +1777,8 @@ function updateNotifyHint() {
   $('#notif-hint').textContent =
     blocked ||
     (push.subscribed
-      ? 'On. Reminders arrive with the app closed.'
-      : 'The habit that gets performed inside a dream. Several a day.');
+      ? 'Zapnuté. Pripomienky prídu aj so zavretou appkou.'
+      : 'Zvyk, ktorý sa raz vykoná aj v sne. Niekoľkokrát denne.');
   $('#set-notify').setAttribute('aria-pressed', String(push.subscribed));
   for (const id of ['#notif-time-row', '#notif-checks-row', '#notif-test']) {
     $(id).classList.toggle('hidden', !push.subscribed);
@@ -1812,13 +1812,13 @@ $('#set-notify').addEventListener('click', async (e) => {
   try {
     if (turningOn) {
       await enableReminders();
-      toast('Reminders on');
+      toast('Pripomienky zapnuté');
     } else {
       await disableReminders();
-      toast('Reminders off');
+      toast('Pripomienky vypnuté');
     }
   } catch (err) {
-    toast(err.message || 'Could not change reminders');
+    toast(err.message || 'Pripomienky sa nepodarilo zmeniť');
   }
   refreshSettings();
 });
@@ -1835,7 +1835,7 @@ const pretty = (t) => {
   if (!m) return '';
   const d = new Date();
   d.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
 function refreshTonightRows() {
@@ -1850,17 +1850,17 @@ function refreshTonightRows() {
   const noPush = !push.subscribed;
   const at = bedtimeNudgeAt();
   $('#bednudge-hint').textContent = noPush
-    ? 'Turn on reminders above first.'
+    ? 'Najprv zapni pripomienky vyššie.'
     : prefs.bedtimeNudge && at
-      ? `At ${pretty(at)}, twenty minutes before bed, to repeat your intention.`
-      : 'Twenty minutes before bed, to repeat your intention.';
+      ? `O ${pretty(at)}, dvadsať minút pred spaním, nech si zopakuješ úmysel.`
+      : 'Dvadsať minút pred spaním, nech si zopakuješ úmysel.';
 
   const wake = wbtbAt();
   $('#wbtb-hint').textContent = noPush
-    ? 'Turn on reminders above first.'
+    ? 'Najprv zapni pripomienky vyššie.'
     : prefs.wbtb && wake
-      ? `Wakes you at ${pretty(wake)}. Stay up twenty minutes, then go back with the intention.`
-      : 'The best odds there are. Wakes you in late REM, five hours in.';
+      ? `Zobudí ťa o ${pretty(wake)}. Ostaň hore dvadsať minút, potom sa vráť s úmyslom.`
+      : 'Najlepšia šanca, aká existuje. Zobudí ťa v neskorom REM, päť hodín po zaspaní.';
 }
 
 $('#set-bedtime').addEventListener('change', async (e) => {
@@ -1873,20 +1873,20 @@ $('#set-bedtime').addEventListener('change', async (e) => {
 
 $('#set-bednudge').addEventListener('click', async (e) => {
   const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
-  if (on && !push.subscribed) return toast('Turn on reminders first');
+  if (on && !push.subscribed) return toast('Najprv zapni pripomienky');
   setPref('bedtimeNudge', on);
   refreshTonightRows();
   await updateSchedule().catch(() => {});
-  toast(on ? `Set for ${pretty(bedtimeNudgeAt())}` : 'Bedtime reminder off');
+  toast(on ? `Nastavené na ${pretty(bedtimeNudgeAt())}` : 'Pripomienka pred spaním vypnutá');
 });
 
 $('#set-wbtb').addEventListener('click', async (e) => {
   const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
-  if (on && !push.subscribed) return toast('Turn on reminders first');
+  if (on && !push.subscribed) return toast('Najprv zapni pripomienky');
   setPref('wbtb', on);
   refreshTonightRows();
   await updateSchedule().catch(() => {});
-  toast(on ? `Waking you at ${pretty(wbtbAt())}` : 'Wake-back-to-bed off');
+  toast(on ? `Zobudím ťa o ${pretty(wbtbAt())}` : 'Prebudenie a späť do postele vypnuté');
 });
 
 $('#wbtb-time').addEventListener('change', async (e) => {
@@ -1898,9 +1898,9 @@ $('#wbtb-time').addEventListener('change', async (e) => {
 $('#notif-test').addEventListener('click', async () => {
   try {
     await sendTest();
-    toast('Sent — it should arrive in a moment');
+    toast('Odoslané — o chvíľu by malo prísť');
   } catch (err) {
-    toast(err.message || 'Could not send');
+    toast(err.message || 'Nepodarilo sa odoslať');
   }
 });
 
@@ -1912,13 +1912,13 @@ function refreshSharing() {
   if (sharing.error) {
     // Never silent again: this used to fail invisibly and look like the other
     // person had simply stopped writing.
-    hint.textContent = `Sharing is not working on this phone — ${sharing.error}. Tap "Reconnect sharing" below.`;
+    hint.textContent = `Zdieľanie na tomto telefóne nefunguje — ${sharing.error}. Ťukni nižšie na „Znovu pripojiť zdieľanie“.`;
   } else if (!sharing.peerName) {
-    hint.textContent = 'Nobody else has an account yet.';
+    hint.textContent = 'Zatiaľ nikto iný nemá účet.';
   } else if (!canShare()) {
-    hint.textContent = `${sharing.peerName} needs to open the app once before sharing can work.`;
+    hint.textContent = `${sharing.peerName} si musí raz otvoriť appku, aby zdieľanie fungovalo.`;
   } else {
-    hint.textContent = `Lucid dreams go to ${sharing.peerName} automatically. Ordinary ones stay private.`;
+    hint.textContent = `Lucidné sny idú ${sharing.peerName} automaticky. Obyčajné ostávajú súkromné.`;
   }
   $('#share-count').textContent = sharing.inbox.length ? String(sharing.inbox.length) : '—';
   $('#share-repair').classList.toggle('hidden', !sharing.error && canShare());
@@ -1927,13 +1927,13 @@ function refreshSharing() {
 /** The manual version of the automatic repair, for when it is still stuck. */
 $('#share-repair').addEventListener('click', async () => {
   if (!state.vaultKey) return;
-  toast('Reconnecting…');
+  toast('Pripájam znovu…');
   await initSharing(state.vaultKey);
   await refreshInbox().catch(() => {});
   await healSharing();
   renderJournal();
   refreshSettings();
-  toast(canShare() ? 'Sharing is working again' : sharing.error || 'Still not connected');
+  toast(canShare() ? 'Zdieľanie zase funguje' : sharing.error || 'Stále nepripojené');
 });
 
 $('#set-share').addEventListener('click', (e) => {

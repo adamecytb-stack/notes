@@ -123,7 +123,7 @@ export function isShared(entryId) {
 }
 
 export async function share(entry) {
-  if (!canShare()) throw new Error('There is nobody to share with yet.');
+  if (!canShare()) throw new Error('Zatiaľ nie je s kým zdieľať.');
   const { id, dreamedAt, createdAt, updatedAt, pending, ...dream } = entry;
   const sealed = await sealShare(sharing.privateKey, sharing.peer.publicKey, id, normalise(dream));
   await api.putShare(id, { ...sealed, dreamedAt });
