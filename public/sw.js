@@ -37,6 +37,7 @@ const SHELL = [
   '/js/store.js',
   '/js/ui.js',
   '/fonts/fraunces-latin.woff2',
+  '/fonts/fraunces-latin-ext.woff2',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
