@@ -906,6 +906,18 @@ const AI_DAILY_CAP = 40; // per person; the free key allows ~1500/day in total
 const AI_MIN_GAP_MS = 4_000; // free tier is ~15 req/min across the whole key
 const AI_MAX_CHARS = 60_000; // roughly 40 dreams of context
 
+/*
+ * Room for the answer, and a ceiling on the thinking that comes before it.
+ *
+ * Current Gemini flash models reason before they reply, and that reasoning is
+ * spent from the same output budget as the text. With a small budget the model
+ * can think its way through the whole allowance and return a candidate with no
+ * parts at all and finishReason MAX_TOKENS — a 200 response containing nothing,
+ * which looks from the app exactly like the companion has stopped working.
+ */
+const AI_MAX_OUTPUT_TOKENS = 4_096;
+const AI_THINKING_BUDGET = 1_024;
+
 /**
  * This is the one endpoint that sees dream text in the clear — everything else
  * here handles ciphertext only. The phone decrypts, posts plaintext, we relay
@@ -967,6 +979,24 @@ async function checkAiBudget(env, userId) {
   return { ok: true, remaining: AI_DAILY_CAP - used - 1 };
 }
 
+/** What this key is actually allowed to call. Only used to explain a 404. */
+async function listGeminiModels(env, host) {
+  try {
+    const res = await fetch(`${host}/v1beta/models`, {
+      headers: { 'x-goog-api-key': env.GEMINI_API_KEY },
+    });
+    if (!res.ok) return [];
+    const payload = await res.json();
+    return (payload?.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => String(m.name || '').replace(/^models\//, ''))
+      .filter((name) => name.includes('flash'))
+      .slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
 async function handleAi(request, env, session) {
   if (!env.GEMINI_API_KEY) {
     return bad('Snový spoločník zatiaľ nie je pre tento denník zapnutý.', 503);
@@ -982,20 +1012,38 @@ async function handleAi(request, env, session) {
   const model = env.GEMINI_MODEL || 'gemini-3.6-flash';
   const host = env.GEMINI_HOST || DEFAULT_GEMINI_HOST;
 
-  let res;
-  try {
-    res = await fetch(`${host}/v1beta/models/${model}:generateContent`, {
+  const call = (withThinking) => {
+    const generationConfig = {
+      temperature: 0.8,
+      maxOutputTokens: AI_MAX_OUTPUT_TOKENS,
+      ...(withThinking ? { thinkingConfig: { thinkingBudget: AI_THINKING_BUDGET } } : {}),
+    };
+    return fetch(`${host}/v1beta/models/${model}:generateContent`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-goog-api-key': env.GEMINI_API_KEY,
       },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: COACH_PROMPT }] },
+        systemInstruction: { parts: [{ text: COACH_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text: body.prompt }] }],
-        generationConfig: { temperature: 0.8, maxOutputTokens: 1200 },
+        generationConfig,
       }),
     });
+  };
+
+  let res;
+  try {
+    res = await call(true);
+    /*
+     * Not every model knows thinkingConfig, and the ones that do not reject the
+     * whole request rather than ignoring the field. Retrying once without it
+     * means a model change cannot take the companion down.
+     */
+    if (res.status === 400) {
+      const peek = await res.clone().json().catch(() => ({}));
+      if (/thinking/i.test(peek?.error?.message || '')) res = await call(false);
+    }
   } catch {
     return json({ error: 'Nepodarilo sa spojiť so snovým spoločníkom.' }, 502);
   }
@@ -1010,8 +1058,17 @@ async function handleAi(request, env, session) {
       return json({ error: 'Gemini je teraz preťažené. Skús to o minútu.' }, 429);
     }
     if (res.status === 404) {
+      // A dead end otherwise: the fix is to pick a different name, and only
+      // Google knows which names this key is allowed to use.
+      const usable = await listGeminiModels(env, host);
       return json(
-        { error: `Model „${model}“ neexistuje. Nastav GEMINI_MODEL na taký, ktorý tvoj kľúč podporuje.` },
+        {
+          error:
+            `Model „${model}“ neexistuje alebo naň tvoj kľúč nemá prístup.` +
+            (usable.length
+              ? ` Nastav GEMINI_MODEL na niektorý z týchto: ${usable.join(', ')}.`
+              : ' Nastav GEMINI_MODEL na taký, ktorý tvoj kľúč podporuje.'),
+        },
         502,
       );
     }
@@ -1027,14 +1084,47 @@ async function handleAi(request, env, session) {
     );
   }
 
-  const text = (payload?.candidates?.[0]?.content?.parts || [])
+  const candidate = payload?.candidates?.[0];
+  const finish = candidate?.finishReason;
+  const usage = payload?.usageMetadata;
+
+  const text = (candidate?.content?.parts || [])
     .map((p) => p.text || '')
     .join('')
     .trim();
 
-  if (!text) return json({ error: 'Snový spoločník nemal čo povedať.' }, 502);
+  if (!text) {
+    /*
+     * "Nothing to say" was the same message for four different failures, and
+     * none of them were guessable from the app. The reason Google gives is the
+     * whole diagnosis, so it goes in the message.
+     */
+    console.error('gemini empty', { finish, model, usage });
+    if (finish === 'MAX_TOKENS') {
+      return json(
+        {
+          error:
+            'Gemini minulo celý limit na premýšľanie a nezvýšilo mu na odpoveď. ' +
+            'Skús to znova — ak sa to opakuje, treba zvýšiť AI_MAX_OUTPUT_TOKENS.',
+        },
+        502,
+      );
+    }
+    if (finish === 'SAFETY' || finish === 'RECITATION') {
+      return json(
+        { error: 'Gemini tento sen odmietlo prečítať. Sny občas spustia jeho bezpečnostné filtre — na tom, čo si napísal, nie je nič zlé.' },
+        422,
+      );
+    }
+    return json(
+      { error: `Snový spoločník nemal čo povedať${finish ? ` (${finish})` : ''}.` },
+      502,
+    );
+  }
 
-  return json({ text, remaining: budget.remaining, model });
+  // A truncated answer is not a failure, but the app should be able to say so
+  // rather than quietly showing half a thought.
+  return json({ text, remaining: budget.remaining, model, truncated: finish === 'MAX_TOKENS' });
 }
 
 /* ------------------------------------------------------------------ route */

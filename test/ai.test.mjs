@@ -13,6 +13,8 @@
 import { execSync } from 'node:child_process';
 import { SETUP_CODE, deriveIdentity, randomHex, makeClient, check, report } from './vault.mjs';
 
+const STUB = process.env.GEMINI_STUB || 'http://127.0.0.1:8788';
+
 const client = makeClient();
 const call = client.call.bind(client);
 
@@ -71,6 +73,52 @@ const call = client.call.bind(client);
   r = await call('POST', '/api/ai', { prompt: 'hello' });
   check('readings require a session', r.status === 401);
   client.cookie = saved;
+
+  /*
+   * The quiet failures. Every one of these used to come back as the same
+   * shrug — "nothing to say" — which is indistinguishable from the companion
+   * being broken, and gives nobody anything to act on.
+   */
+  /*
+   * The system prompt is what tells Gemini the dreams are Slovak and that it
+   * must answer in Slovak. If it silently stopped arriving — a renamed field
+   * would do it — the companion would still work, just in the wrong language,
+   * and no other test would notice.
+   */
+  console.log('\n— the system prompt actually arrives —');
+  const sent = await (await fetch(`${STUB}/__last`)).json();
+  check('a system prompt was sent at all', typeof sent.system === 'string' && sent.system.length > 200,
+    `(${(sent.system || '').length} chars)`);
+  check('it tells the model the dreams are Slovak', /Slovak/.test(sent.system || ''));
+  check('and to reply in Slovak', /Always reply in Slovak/.test(sent.system || ''));
+  check('room is left for an answer after thinking',
+    sent.maxTokens >= 4096 && sent.thinking?.thinkingBudget < sent.maxTokens,
+    JSON.stringify({ maxTokens: sent.maxTokens, thinking: sent.thinking }));
+
+  console.log('\n— a 200 with no answer in it says why —');
+  r = await call('POST', '/api/ai', { prompt: 'TRIGGER_THOUGHT_ALL_TOKENS' });
+  check('thinking through the whole budget is named as such',
+    r.status === 502 && /premýšľanie/i.test(r.json.error), JSON.stringify(r.json));
+
+  await new Promise((s) => setTimeout(s, 4200));
+  r = await call('POST', '/api/ai', { prompt: 'TRIGGER_CANDIDATE_SAFETY' });
+  check('a safety stop on the answer reads as a safety stop',
+    r.status === 422 && /bezpečnostné/i.test(r.json.error), JSON.stringify(r.json));
+
+  await new Promise((s) => setTimeout(s, 4200));
+  r = await call('POST', '/api/ai', { prompt: 'TRIGGER_TRUNCATED' });
+  check('a cut-off answer still arrives', r.status === 200 && !!r.json.text);
+  check('and is flagged as cut off', r.json.truncated === true, JSON.stringify(r.json));
+
+  await new Promise((s) => setTimeout(s, 4200));
+  r = await call('POST', '/api/ai', { prompt: 'TRIGGER_NO_THINKING_SUPPORT' });
+  check('a model that rejects thinkingConfig is retried without it',
+    r.status === 200 && /bez premýšľania/.test(r.json.text || ''), JSON.stringify(r.json));
+
+  await new Promise((s) => setTimeout(s, 4200));
+  r = await call('POST', '/api/ai', { prompt: 'TRIGGER_404' });
+  check('an unusable model name lists the ones that work',
+    r.status === 502 && /gemini-stub-flash/.test(r.json.error), JSON.stringify(r.json));
 
   console.log('\n— the budget is per person —');
   execSync(

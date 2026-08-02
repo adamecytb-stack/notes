@@ -1746,12 +1746,14 @@ async function showReading(title, buildPrompt) {
   });
 
   try {
-    const { text } = await ask(buildPrompt(entries));
+    const { text, truncated } = await ask(buildPrompt(entries));
     slot.replaceChildren();
     // Plain paragraphs, set as text — never innerHTML with model output.
     for (const para of text.split(/\n{2,}/)) {
       if (para.trim()) slot.appendChild(el('p', 'reading__p', para.trim()));
     }
+    // Half a thought looks like a bad answer unless it says it was cut off.
+    if (truncated) slot.appendChild(el('p', 'note', '(Odpoveď bola odseknutá — došiel jej limit.)'));
   } catch (err) {
     slot.replaceChildren(el('p', 'error', err.message || 'To nevyšlo.'));
   }
