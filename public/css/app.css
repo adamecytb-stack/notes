@@ -1073,16 +1073,26 @@ body[data-nav='back'] .screen.is-active {
  */
 .step {
   display: none;
-  min-height: 58vh;
   padding-top: 0.75rem;
   padding-bottom: 2rem;
 }
 
+/*
+ * Centred by auto margins rather than justify-content, which matters the
+ * moment the content is taller than the space — with the keyboard up, say.
+ * `justify-content: center` overflows a scroll container in both directions
+ * and the top becomes unreachable; auto margins collapse to zero instead and
+ * everything stays scrollable.
+ */
 .step.is-active {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  margin-block: auto;
   animation: step-in 0.34s var(--ease-out-soft) 0.07s backwards;
+}
+
+.step--tall.is-active {
+  margin-block: 0;
 }
 
 .compose.is-back .step.is-active {
@@ -1101,6 +1111,7 @@ body[data-nav='back'] .screen.is-active {
   justify-content: center;
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -1131,11 +1142,6 @@ body[data-nav='back'] .screen.is-active {
     opacity: 0;
     transform: translate3d(-22px, 0, 0);
   }
-}
-
-/* The long ones start at the top instead, or their first question is cut off. */
-.step--tall.is-active {
-  justify-content: flex-start;
 }
 
 @keyframes step-in {
@@ -1835,10 +1841,12 @@ body[data-nav='back'] .screen.is-active {
   outline: none;
 }
 
+/* Height is set from the content by fitBody(), so the page scrolls rather
+   than the box. overflow:hidden stops a scrollbar flickering mid-grow. */
 .compose__body {
-  flex: 0 1 auto;
-  min-height: 34vh;
+  min-height: 8.5rem;
   resize: none;
+  overflow: hidden;
   font-size: 1.0625rem;
   line-height: 1.68;
   font-variation-settings: 'opsz' 14, 'wght' 350, 'SOFT' 0, 'WONK' 1;
@@ -2719,11 +2727,6 @@ input.row__value[type='time']::-webkit-calendar-picker-indicator {
     from {
       opacity: 0;
     }
-  }
-
-  /* The panel supplies its own height; 58vh of it would be mostly void. */
-  .sheet .step {
-    min-height: 24vh;
   }
 
   .sheet.is-open {

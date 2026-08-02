@@ -915,7 +915,11 @@ function showStep(next) {
 
   // Put the cursor where the answer goes, so typing can start immediately.
   if (STEPS[step] === 'name') titleInput.focus();
-  if (STEPS[step] === 'story') bodyInput.focus();
+  if (STEPS[step] === 'story') {
+    // The bubble has no measurable height until it is on screen.
+    fitBody();
+    bodyInput.focus();
+  }
   if (STEPS[step] === 'context') refreshTip();
 }
 
@@ -1338,11 +1342,26 @@ function updateWhenLabel() {
 
 $('#record').addEventListener('click', () => openCompose(null));
 
+/**
+ * Grows the story bubble to fit what is in it.
+ *
+ * A textarea does not resize itself, so a long dream would scroll inside a
+ * small box while the page behind it stayed still — which reads, correctly, as
+ * not being able to scroll. Growing the bubble instead means the page scrolls,
+ * the way it does when you write a long message anywhere else.
+ */
+function fitBody() {
+  bodyInput.style.height = 'auto';
+  bodyInput.style.height = `${bodyInput.scrollHeight}px`;
+}
+
 for (const input of [titleInput, bodyInput]) {
   // Encrypted autosave: after two seconds of stillness the dream is safe,
   // whether or not anyone reaches the end of the questions.
   input.addEventListener('input', mark);
 }
+
+bodyInput.addEventListener('input', fitBody);
 
 async function commit({ silent = false } = {}) {
   if (!composing) return null;

@@ -49,6 +49,36 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   check('what happened is asked third', await page.isVisible('#compose-body'));
   await page.fill('#compose-body', 'I was in a corridor where every door opened onto the same beach.');
 
+  /*
+   * A long dream has to scroll the page, not scroll inside a small box. The
+   * bubble grows to fit instead of trapping the text, and the step is centred
+   * with auto margins rather than justify-content — centred flex content that
+   * overflows a scroll container cannot be scrolled back to.
+   */
+  console.log('\n— a long dream still scrolls —');
+  const LONG = Array.from({ length: 12 }, (_, i) =>
+    `Paragraph ${i + 1}. Every door in the corridor opened onto the same stretch of beach, ` +
+    'and each time I went through one the tide was a little further out than before.',
+  ).join('\n\n');
+  await page.fill('#compose-body', LONG);
+  await page.waitForTimeout(400);
+  const scrolling = await page.evaluate(() => {
+    const box = document.querySelector('.compose');
+    const field = document.querySelector('#compose-body');
+    const at = box.scrollTop;
+    box.scrollTop = 99999;
+    const max = box.scrollTop;
+    box.scrollTop = at;
+    return {
+      trapped: field.scrollHeight > field.clientHeight + 2,
+      pageScrolls: max > 0,
+    };
+  });
+  check('the bubble grows instead of trapping the text', !scrolling.trapped);
+  check('and the page scrolls', scrolling.pageScrolls);
+  await page.fill('#compose-body', 'I was in a corridor where every door opened onto the same beach.');
+  await page.waitForTimeout(300);
+
   console.log('\n— the faces —');
   await page.click('#compose-next');
   await page.waitForTimeout(300);
