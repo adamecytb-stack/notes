@@ -30,6 +30,8 @@ const DEFAULTS = {
   wbtbTime: '',
   // Reality checks actually performed, { 'YYYY-MM-DD': count }. Local only.
   checkLog: {},
+  // When the last one was, so two taps a few seconds apart cannot both count.
+  lastCheckAt: 0,
 };
 
 export const prefs = load();

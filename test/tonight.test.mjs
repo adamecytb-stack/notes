@@ -96,19 +96,59 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
   await page.waitForTimeout(500);
 
   await page.click('#do-check');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
+
+  /*
+   * A check is only worth counting if it was a real one. Two taps seconds
+   * apart are one moment of curiosity, so the second is refused rather than
+   * quietly inflating the number that sits next to the lucid rate.
+   */
+  console.log('\n— and only one a minute —');
   await page.click('#do-check');
   await page.waitForTimeout(400);
+  check('the second tap says how long to wait',
+    /Ďalší test reality o \d+ s/.test(await page.textContent('#toast')),
+    `(saw: "${await page.textContent('#toast')}")`);
+  check('the button counts down instead of looking ready',
+    /Ďalší o \d+ s/.test(await page.textContent('#do-check-hint')),
+    `(saw: "${await page.textContent('#do-check-hint')}")`);
 
   await page.click('#open-patterns');
   await page.waitForTimeout(700);
   check('the tally appears once checks are done', await page.isVisible('#checks-group'));
   const note = await page.textContent('#checks-note');
-  check('it counts them', /2 za posledné dva týždne/.test(note), `(saw: "${note}")`);
-  check('and says how many today', /Dnes 2/.test(note));
+  check('the refused tap was not counted', /1 za posledné dva týždne/.test(note),
+    `(saw: "${note}")`);
+  check('and says how many today', /Dnes 1/.test(note));
+
+  // The gap is real time, so this proves it lifts rather than merely waiting.
+  await page.click('#patterns-back');
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem('nocturne.prefs') || '{}');
+    p.lastCheckAt = Date.now() - 61_000;
+    localStorage.setItem('nocturne.prefs', JSON.stringify(p));
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2600);
+  check('once the minute is up the button is ready again',
+    /Snívam/.test(await page.textContent('#do-check-hint')),
+    `(saw: "${await page.textContent('#do-check-hint')}")`);
+  await page.click('#do-check');
+  await page.waitForTimeout(400);
+  await page.click('#open-patterns');
+  await page.waitForTimeout(700);
+  check('and the next check counts',
+    /2 za posledné dva týždne/.test(await page.textContent('#checks-note')),
+    `(saw: "${await page.textContent('#checks-note')}")`);
   check('a fortnight of bars is drawn', (await page.$$('#checks-spark .spark')).length === 14);
 
   console.log('\n— a tapped reality-check notification counts too —');
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem('nocturne.prefs') || '{}');
+    p.lastCheckAt = 0;
+    localStorage.setItem('nocturne.prefs', JSON.stringify(p));
+  });
   await page.goto(`${BASE}/?check=1`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2600);
   await page.click('#open-patterns');
@@ -122,6 +162,8 @@ const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
    * fresh check — and a tally you cannot trust is worse than no tally.
    */
   console.log('\n— and only counts once —');
+  // Still inside the minute, so a relaunch cannot log another anyway — but the
+  // link being consumed is what this is actually about.
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
   await page.click('#open-patterns');

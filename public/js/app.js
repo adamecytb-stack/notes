@@ -275,6 +275,7 @@ $('#tabs').addEventListener('click', (e) => {
 
 function renderJournal() {
   $('#greeting').textContent = greeting();
+  paintCheckButton();
 
   // The second tab only makes sense once there is somebody on the other end.
   const hasPeer = !!sharing.peerName;
@@ -661,6 +662,25 @@ function renderConditions(entries) {
 
 const dayKey = (ts = Date.now()) => new Date(ts).toISOString().slice(0, 10);
 
+/*
+ * One check a minute, at most.
+ *
+ * The tally is only worth anything if the checks behind it were real, and two
+ * taps ten seconds apart are one moment of curiosity, not two moments of
+ * genuinely wondering whether this is a dream. Without the gap the number
+ * inflates on its own and stops meaning anything — which matters, because it
+ * is the number sitting next to the lucid rate on Patterns.
+ */
+const CHECK_GAP_MS = 60_000;
+
+/** Milliseconds still to wait, or 0 if a check can be logged now. */
+function checkCooldown(now = Date.now()) {
+  const last = Number(prefs.lastCheckAt) || 0;
+  // A clock that has gone backwards must not lock the button out for hours.
+  if (last > now) return 0;
+  return Math.max(0, CHECK_GAP_MS - (now - last));
+}
+
 function logCheck() {
   const log = { ...(prefs.checkLog || {}) };
   const key = dayKey();
@@ -669,6 +689,7 @@ function logCheck() {
   const cutoff = dayKey(Date.now() - 42 * DAY_MS);
   for (const k of Object.keys(log)) if (k < cutoff) delete log[k];
   setPref('checkLog', log);
+  setPref('lastCheckAt', Date.now());
   return log[key];
 }
 
@@ -709,12 +730,50 @@ function renderChecks() {
 
 /** Offered after a reality-check nudge, and from the journal at any time. */
 function askedRealityCheck() {
+  const waiting = checkCooldown();
+  if (waiting > 0) {
+    // Refused, so nothing is logged — the tally must only count real checks.
+    toast(`Ďalší test reality o ${Math.ceil(waiting / 1000)} s.`);
+    return;
+  }
   const n = logCheck();
   renderChecks();
+  paintCheckButton();
   toast(n === 1 ? 'Skontrolované. Dnes prvý.' : `Skontrolované. Dnes ${n}.`);
 }
 
+/*
+ * The button says what it will do. A tap that quietly does nothing reads as a
+ * broken button, so during the cooldown it counts down instead of pretending
+ * to be ready.
+ */
+let checkTicker = null;
+
+function paintCheckButton() {
+  const hint = $('#do-check-hint');
+  const button = $('#do-check');
+  if (!hint || !button) return;
+
+  const waiting = checkCooldown();
+  button.classList.toggle('is-cooling', waiting > 0);
+  hint.textContent = waiting > 0
+    ? `Ďalší o ${Math.ceil(waiting / 1000)} s.`
+    : 'Snívam? Opýtaj sa poriadne.';
+
+  clearInterval(checkTicker);
+  checkTicker = null;
+  if (waiting > 0) {
+    // Only ticks while it is counting; there is nothing to animate otherwise.
+    checkTicker = setInterval(paintCheckButton, 1000);
+  }
+}
+
 $('#do-check').addEventListener('click', askedRealityCheck);
+
+// Coming back to the app after the gap has elapsed must clear the countdown.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') paintCheckButton();
+});
 
 /* ================================================================ TONIGHT */
 

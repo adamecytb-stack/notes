@@ -2445,6 +2445,17 @@ input.row__value[type='time']::-webkit-calendar-picker-indicator {
   border-color: color-mix(in srgb, var(--ember) 45%, transparent);
 }
 
+/* Counting down. Still tappable — it explains itself rather than going dead,
+   which is what a disabled button would look like. */
+.act.is-cooling {
+  opacity: 0.55;
+}
+
+.act.is-cooling .act__hint {
+  color: var(--ember);
+  font-variant-numeric: tabular-nums;
+}
+
 .act__title {
   display: block;
   font-variation-settings: 'opsz' 16, 'wght' 460, 'SOFT' 30, 'WONK' 1;
